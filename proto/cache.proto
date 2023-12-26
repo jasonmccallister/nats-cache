@@ -1,0 +1,44 @@
+syntax = "proto3";
+
+package cache.v1;
+
+message GetRequest {
+    optional uint32 database = 1;
+    string key = 2;
+}
+
+message GetResponse {
+    uint32 database = 1;
+    string key = 2;
+    bytes value = 3;
+}
+
+message SetRequest {
+    optional uint32 database = 1;
+    string key = 2;
+    bytes value = 3;
+    optional uint32 ttl = 4;
+}
+
+message SetResponse {
+    uint32 database = 1;
+    string key = 2;
+    bytes value = 3;
+    uint32 ttl = 4;
+}
+
+message DeleteRequest {
+    optional uint32 database = 1;
+    string key = 2;
+}
+
+message DeleteResponse {
+    uint32 database = 1;
+    string key = 2;
+}
+
+service CacheService {
+    rpc Get(stream GetRequest) returns (stream GetResponse) {}
+    rpc Set(stream SetRequest) returns (stream SetResponse) {}
+    rpc Delete(stream DeleteRequest) returns (stream DeleteResponse) {}
+}
