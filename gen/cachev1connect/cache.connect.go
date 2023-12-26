@@ -51,8 +51,11 @@ var (
 
 // CacheServiceClient is a client for the cache.v1.CacheService service.
 type CacheServiceClient interface {
+	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
 	Get(context.Context) *connect.BidiStreamForClient[gen.GetRequest, gen.GetResponse]
+	// Set is responsible for setting a value in the cache.
 	Set(context.Context) *connect.BidiStreamForClient[gen.SetRequest, gen.SetResponse]
+	// Delete is responsible for deleting a value from the cache.
 	Delete(context.Context) *connect.BidiStreamForClient[gen.DeleteRequest, gen.DeleteResponse]
 }
 
@@ -111,8 +114,11 @@ func (c *cacheServiceClient) Delete(ctx context.Context) *connect.BidiStreamForC
 
 // CacheServiceHandler is an implementation of the cache.v1.CacheService service.
 type CacheServiceHandler interface {
+	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
 	Get(context.Context, *connect.BidiStream[gen.GetRequest, gen.GetResponse]) error
+	// Set is responsible for setting a value in the cache.
 	Set(context.Context, *connect.BidiStream[gen.SetRequest, gen.SetResponse]) error
+	// Delete is responsible for deleting a value from the cache.
 	Delete(context.Context, *connect.BidiStream[gen.DeleteRequest, gen.DeleteResponse]) error
 }
 

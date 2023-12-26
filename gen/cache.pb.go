@@ -20,6 +20,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// GetRequest is the request message for the Get method. The database is optional and
+// used primarily as a prefix for the key. This supports applications that use the
+// service as a mutex, sessions, or cache without making additional accounts.
+// If the database is not specified, the default database of 0 is assumed.
 type GetRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -75,6 +79,7 @@ func (x *GetRequest) GetKey() string {
 	return ""
 }
 
+// GetResponse is the response message for the Get method.
 type GetResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -138,6 +143,10 @@ func (x *GetResponse) GetValue() []byte {
 	return nil
 }
 
+// SetGetRequest is the request message for the Set method. The database is optional and
+// used primarily as a prefix for the key. This supports applications that use the
+// service as a mutex, sessions, or cache without making additional accounts.
+// If the database is not specified, the default database of 0 is used.
 type SetRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
@@ -280,6 +289,9 @@ func (x *SetResponse) GetTtl() uint32 {
 	return 0
 }
 
+// DeleteRequest is the request message for the Delete method. The database is optional and
+// used primarily as a prefix for the key. If the database is not specified, the default
+// database of 0 is used.
 type DeleteRequest struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
