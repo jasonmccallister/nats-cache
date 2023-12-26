@@ -2,17 +2,26 @@ syntax = "proto3";
 
 package cache.v1;
 
+// GetRequest is the request message for the Get method. The database is optional and 
+// used primarily as a prefix for the key. This supports applications that use the 
+// service as a mutex, sessions, or cache without making additional accounts.
+// If the database is not specified, the default database of 0 is assumed. 
 message GetRequest {
     optional uint32 database = 1;
     string key = 2;
 }
 
+// GetResponse is the response message for the Get method. 
 message GetResponse {
     uint32 database = 1;
     string key = 2;
     bytes value = 3;
 }
 
+// SetGetRequest is the request message for the Set method. The database is optional and 
+// used primarily as a prefix for the key. This supports applications that use the 
+// service as a mutex, sessions, or cache without making additional accounts.
+// If the database is not specified, the default database of 0 is used. 
 message SetRequest {
     optional uint32 database = 1;
     string key = 2;
@@ -27,6 +36,9 @@ message SetResponse {
     uint32 ttl = 4;
 }
 
+// DeleteRequest is the request message for the Delete method. The database is optional and
+// used primarily as a prefix for the key. If the database is not specified, the default
+// database of 0 is used.
 message DeleteRequest {
     optional uint32 database = 1;
     string key = 2;
@@ -38,7 +50,12 @@ message DeleteResponse {
 }
 
 service CacheService {
+    // Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
     rpc Get(stream GetRequest) returns (stream GetResponse) {}
+    
+    // Set is responsible for setting a value in the cache.
     rpc Set(stream SetRequest) returns (stream SetResponse) {}
+
+    // Delete is responsible for deleting a value from the cache.
     rpc Delete(stream DeleteRequest) returns (stream DeleteResponse) {}
 }
