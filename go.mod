@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	connectrpc.com/connect v1.14.0 // indirect
 	github.com/bufbuild/connect-go v1.10.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
@@ -22,7 +23,7 @@ require (
 require (
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/nats-io/nats-server/v2 v2.10.7
-	golang.org/x/net v0.16.0 // indirect
+	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.15.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231002182017-d307bd883b97 // indirect

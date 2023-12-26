@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	gen "github.com/jasonmccallister/nats-cache/internal/gen"
+	gen "github.com/jasonmccallister/nats-cache/gen"
 	http "net/http"
 	strings "strings"
 )
