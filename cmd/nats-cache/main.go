@@ -38,11 +38,8 @@ func run(ctx context.Context, logger *log.Logger, addr uint32) error {
 	// TODO(jasonmccallister) register reflection service on gRPC server using connectrpc.com/grpcreflect
 	// TODO(jasonmccallister) register health service on gRPC server using connectrpc.com/grpchealth
 
-	fmt.Println("... Listening on", addr)
+	logger.Println("starting server on port", addr)
 
-	return http.ListenAndServe(
-		fmt.Sprintf(":%d", addr),
-		// Use h2c so we can serve HTTP/2 without TLS.
-		h2c.NewHandler(mux, &http2.Server{}),
-	)
+	// Use h2c so we can serve HTTP/2 without TLS.
+	return http.ListenAndServe(fmt.Sprintf(":%d", addr), h2c.NewHandler(mux, &http2.Server{}))
 }
