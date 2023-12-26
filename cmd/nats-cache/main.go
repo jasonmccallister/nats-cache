@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 
+	"connectrpc.com/connect"
+	"connectrpc.com/otelconnect"
 	"github.com/jasonmccallister/nats-cache/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
@@ -33,7 +35,17 @@ func run(ctx context.Context, logger *log.Logger, addr uint32) error {
 
 	store := storage.NewInMemory()
 
-	mux.Handle(cachev1connect.NewCacheServiceHandler(cached.NewServer(store)))
+	var opts []connect.HandlerOption
+
+	// Add tracing middleware.
+	opts = append(opts, connect.WithInterceptors(
+		otelconnect.NewInterceptor(),
+	))
+
+	mux.Handle(cachev1connect.NewCacheServiceHandler(
+		cached.NewServer(store),
+		opts...,
+	))
 
 	// TODO(jasonmccallister) register reflection service on gRPC server using connectrpc.com/grpcreflect
 	// TODO(jasonmccallister) register health service on gRPC server using connectrpc.com/grpchealth
