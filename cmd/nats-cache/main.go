@@ -5,17 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net"
+	"net/http"
 	"os"
-	"time"
 
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/health"
-	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/grpc/reflection"
+	"github.com/jasonmccallister/nats-cache/gen/cachev1connect"
+	"github.com/jasonmccallister/nats-cache/internal/cached"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -32,40 +28,15 @@ func main() {
 }
 
 func run(ctx context.Context, logger *log.Logger, addr uint32) error {
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", addr))
-	if err != nil {
-		return fmt.Errorf("failed to listen: %w", err)
-	}
+	mux := http.NewServeMux()
 
-	opts := &server.Options{
-		HTTPPort:  8222,
-		JetStream: true,
-	}
-	ns, err := server.NewServer(opts)
-	if err != nil {
-		return fmt.Errorf("failed to create server: %w", err)
-	}
+	mux.Handle(cachev1connect.NewCacheServiceHandler(cached.NewServer()))
 
-	go ns.Start()
+	fmt.Println("... Listening on", addr)
 
-	if !ns.ReadyForConnections(10 * time.Second) {
-		return fmt.Errorf("failed to start server")
-	}
-
-	if _, err := nats.Connect(ns.ClientURL()); err != nil {
-		return fmt.Errorf("failed to connect to local nats: %w", err)
-	}
-
-	go func() {
-		ns.WaitForShutdown()
-	}()
-
-	grpcServer := grpc.NewServer(grpc.Creds(insecure.NewCredentials()))
-	grpc_health_v1.RegisterHealthServer(grpcServer, health.NewServer())
-
-	reflection.Register(grpcServer)
-
-	logger.Println("starting server on port", addr)
-
-	return grpcServer.Serve(lis)
+	return http.ListenAndServe(
+		fmt.Sprintf(":%d", addr),
+		// Use h2c so we can serve HTTP/2 without TLS.
+		h2c.NewHandler(mux, &http2.Server{}),
+	)
 }
