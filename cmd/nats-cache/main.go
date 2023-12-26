@@ -10,6 +10,7 @@ import (
 
 	"github.com/jasonmccallister/nats-cache/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
+	"github.com/jasonmccallister/nats-cache/internal/storage"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -30,7 +31,12 @@ func main() {
 func run(ctx context.Context, logger *log.Logger, addr uint32) error {
 	mux := http.NewServeMux()
 
-	mux.Handle(cachev1connect.NewCacheServiceHandler(cached.NewServer()))
+	store := storage.NewInMemory()
+
+	mux.Handle(cachev1connect.NewCacheServiceHandler(cached.NewServer(store)))
+
+	// TODO(jasonmccallister) register reflection service on gRPC server using connectrpc.com/grpcreflect
+	// TODO(jasonmccallister) register health service on gRPC server using connectrpc.com/grpchealth
 
 	fmt.Println("... Listening on", addr)
 

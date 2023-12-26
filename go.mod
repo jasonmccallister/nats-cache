@@ -9,6 +9,7 @@ require (
 
 require (
 	connectrpc.com/connect v1.14.0 // indirect
+	connectrpc.com/grpcreflect v1.2.0 // indirect
 	github.com/bufbuild/connect-go v1.10.0 // indirect
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
