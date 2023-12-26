@@ -25,12 +25,12 @@ func main() {
 
 	logger := log.New(os.Stdout, "nats-cache: ", log.LstdFlags)
 
-	if err := run(ctx, logger, uint32(*addr)); err != nil {
+	if err := run(ctx, logger, *addr); err != nil {
 		logger.Fatal(err)
 	}
 }
 
-func run(ctx context.Context, logger *log.Logger, addr uint32) error {
+func run(ctx context.Context, logger *log.Logger, addr uint) error {
 	mux := http.NewServeMux()
 
 	store := storage.NewInMemory()
