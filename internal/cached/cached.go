@@ -8,7 +8,7 @@ import (
 	cachev1 "github.com/jasonmccallister/nats-cache/gen"
 	"github.com/jasonmccallister/nats-cache/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
-	"github.com/jasonmccallister/nats-cache/internal/key"
+	"github.com/jasonmccallister/nats-cache/internal/keygen"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
 )
 
@@ -32,7 +32,7 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 			return err
 		}
 
-		key, err := key.KeyFromToken(*t, req.GetDatabase(), req.GetKey())
+		key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
@@ -64,7 +64,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			return err
 		}
 
-		key, err := key.KeyFromToken(*t, req.GetDatabase(), req.GetKey())
+		key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
@@ -103,7 +103,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			return err
 		}
 
-		key, err := key.KeyFromToken(*t, req.GetDatabase(), req.GetKey())
+		key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
