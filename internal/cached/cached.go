@@ -32,19 +32,19 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 			return err
 		}
 
-		key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
 		// maybe consider removing the db from the delete request and rely on a generic key?
-		if err := s.Store.Delete(req.GetDatabase(), key); err != nil {
+		if err := s.Store.Delete(req.GetDatabase(), internalKey); err != nil {
 			return err
 		}
 
 		if err := stream.Send(&cachev1.DeleteResponse{
 			Database: req.GetDatabase(),
-			Key:      req.GetKey(),
+			Key:      key,
 		}); err != nil {
 			return err
 		}
@@ -64,12 +64,12 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			return err
 		}
 
-		key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		value, err := s.Store.Get(req.GetDatabase(), key)
+		value, err := s.Store.Get(req.GetDatabase(), internalKey)
 		if err != nil {
 			stream.Send(&cachev1.GetResponse{
 				Database: req.GetDatabase(),
@@ -103,12 +103,12 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			return err
 		}
 
-		key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		if err := s.Store.Set(req.GetDatabase(), key, req.GetValue(), 0); err != nil {
+		if err := s.Store.Set(req.GetDatabase(), internalKey, req.GetValue(), 0); err != nil {
 			return err
 		}
 
