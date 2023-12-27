@@ -38,7 +38,7 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 		}
 
 		// maybe consider removing the db from the delete request and rely on a generic key?
-		if err := s.Store.Delete(req.GetDatabase(), internalKey); err != nil {
+		if err := s.Store.Delete(internalKey); err != nil {
 			return err
 		}
 
@@ -69,7 +69,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		value, err := s.Store.Get(req.GetDatabase(), internalKey)
+		value, err := s.Store.Get(internalKey)
 		if err != nil {
 			stream.Send(&cachev1.GetResponse{
 				Database: req.GetDatabase(),
@@ -108,7 +108,9 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		if err := s.Store.Set(req.GetDatabase(), internalKey, req.GetValue(), 0); err != nil {
+		// TODO(jasonmccallister) did the user provide a value for the ttl?
+
+		if err := s.Store.Set(internalKey, req.GetValue(), 0); err != nil {
 			return err
 		}
 
@@ -116,6 +118,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			Database: req.GetDatabase(),
 			Key:      req.GetKey(),
 			Value:    req.GetValue(),
+			Ttl:      0,
 		}); err != nil {
 			return err
 		}
