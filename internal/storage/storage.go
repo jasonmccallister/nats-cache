@@ -4,8 +4,8 @@ package storage
 // Since NATS does not natively support a TTL per key we need to store it in the value.
 // See this issue for more details https://github.com/nats-io/nats-server/issues/3251
 type Item struct {
-	Value []byte
-	TTL   int64
+	Value []byte `json:"value"`
+	TTL   int64  `json:"ttl"`
 }
 
 // Store is an interface that defines the methods needed to interact with a storage engine such as NATS KV

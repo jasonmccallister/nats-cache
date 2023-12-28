@@ -2,6 +2,7 @@ package storage
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 	"time"
 )
@@ -36,12 +37,15 @@ func (s *inMemory) Get(key string) ([]byte, error) {
 
 	var i Item
 	if err := json.Unmarshal(s.db[key], &i); err != nil {
+		fmt.Println(string(s.db[key]))
 		return nil, err
 	}
 
 	// check if the item has expired
-	if i.TTL > 0 && i.TTL <= time.Now().Unix() {
-		return nil, nil
+	if i.TTL > 0 {
+		if i.TTL < time.Now().Unix() {
+			return nil, nil
+		}
 	}
 
 	return i.Value, nil
