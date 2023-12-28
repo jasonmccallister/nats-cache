@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"fmt"
+	"encoding/json"
 	"reflect"
 	"sync"
 	"testing"
@@ -27,7 +27,10 @@ func Test_inMemory_Delete(t *testing.T) {
 			fields: fields{
 				mu: sync.RWMutex{},
 				db: map[string][]byte{
-					"test": []byte(`{"value":"test","ttl":0}`),
+					"test": marshalItem(t, Item{
+						Value: []byte("test"),
+						TTL:   0,
+					}),
 				},
 			},
 			args: args{
@@ -60,6 +63,16 @@ func Test_inMemory_Delete(t *testing.T) {
 	}
 }
 
+func marshalItem(t *testing.T, i Item) []byte {
+	t.Helper()
+
+	b, err := json.Marshal(i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
+}
+
 func Test_inMemory_Get(t *testing.T) {
 	type fields struct {
 		mu sync.RWMutex
@@ -80,7 +93,10 @@ func Test_inMemory_Get(t *testing.T) {
 			fields: fields{
 				mu: sync.RWMutex{},
 				db: map[string][]byte{
-					"test": []byte(`{"value":"test","ttl":0}`),
+					"test": marshalItem(t, Item{
+						Value: []byte("test"),
+						TTL:   0,
+					}),
 				},
 			},
 			args: args{
@@ -102,25 +118,14 @@ func Test_inMemory_Get(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "should return nil if the keys ttl is 0",
-			fields: fields{
-				mu: sync.RWMutex{},
-				db: map[string][]byte{
-					"test": []byte(`{"value":"test","ttl":0}`),
-				},
-			},
-			args: args{
-				key: "test",
-			},
-			want:    nil,
-			wantErr: false,
-		},
-		{
 			name: "should return nil if the key has expired",
 			fields: fields{
 				mu: sync.RWMutex{},
 				db: map[string][]byte{
-					"test": []byte(fmt.Sprintf(`{"value":"test","ttl":%d}`, time.Now().Unix()-20)),
+					"test": marshalItem(t, Item{
+						Value: []byte("test"),
+						TTL:   time.Now().Unix() - 20,
+					}),
 				},
 			},
 			args: args{
@@ -142,7 +147,7 @@ func Test_inMemory_Get(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("inMemory.Get() = %v, want %v", got, tt.want)
+				t.Errorf("inMemory.Get() = %v, want %v", string(got), string(tt.want))
 			}
 		})
 	}
