@@ -1,6 +1,10 @@
 package storage
 
-import "sync"
+import (
+	"encoding/json"
+	"sync"
+	"time"
+)
 
 type inMemory struct {
 	mu sync.RWMutex
@@ -30,6 +34,16 @@ func (s *inMemory) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
+	var i Item
+	if err := json.Unmarshal(s.db[key], &i); err != nil {
+		return nil, err
+	}
+
+	// check if the item has expired
+	if i.TTL > 0 && i.TTL <= time.Now().Unix() {
+		return nil, nil
+	}
+
 	return s.db[key], nil
 }
 
@@ -38,7 +52,17 @@ func (s *inMemory) Set(key string, value []byte, ttl int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.db[key] = value
+	i := Item{
+		Value: value,
+		TTL:   ttl,
+	}
+
+	b, err := json.Marshal(i)
+	if err != nil {
+		return err
+	}
+
+	s.db[key] = b
 
 	return nil
 }
