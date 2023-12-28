@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	cachev1 "github.com/jasonmccallister/nats-cache/gen"
-	"github.com/jasonmccallister/nats-cache/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
+	cachev1 "github.com/jasonmccallister/nats-cache/internal/gen"
+	"github.com/jasonmccallister/nats-cache/internal/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/keygen"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
 )
