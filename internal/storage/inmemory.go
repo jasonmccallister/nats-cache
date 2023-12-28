@@ -44,7 +44,7 @@ func (s *inMemory) Get(key string) ([]byte, error) {
 		return nil, nil
 	}
 
-	return s.db[key], nil
+	return i.Value, nil
 }
 
 // Set implements Store.

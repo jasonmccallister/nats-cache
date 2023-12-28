@@ -3,6 +3,7 @@ package cached
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"connectrpc.com/connect"
 	cachev1 "github.com/jasonmccallister/nats-cache/gen"
@@ -108,9 +109,13 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		// TODO(jasonmccallister) did the user provide a value for the ttl?
+		// did the user provide a value for the ttl?
+		var ttl int64
+		if req.GetTtl() > 0 {
+			ttl = time.Now().Add(time.Duration(req.GetTtl()) * time.Second).Unix()
+		}
 
-		if err := s.Store.Set(internalKey, req.GetValue(), 0); err != nil {
+		if err := s.Store.Set(internalKey, req.GetValue(), ttl); err != nil {
 			return err
 		}
 
@@ -118,7 +123,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			Database: req.GetDatabase(),
 			Key:      req.GetKey(),
 			Value:    req.GetValue(),
-			Ttl:      0,
+			Ttl:      uint32(ttl),
 		}); err != nil {
 			return err
 		}

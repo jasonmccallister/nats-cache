@@ -4,7 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -27,19 +27,24 @@ func main() {
 
 	ctx := context.Background()
 
-	logger := log.New(os.Stdout, "nats-cache: ", log.LstdFlags)
+	//logger := log.New(os.Stdout, "nats-cache: ", log.LstdFlags)
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
 
 	// if the public key is not set, exit
 	if *publicKey == "" {
-		logger.Fatal("public key is required")
+		logger.Error("public key is required")
+		os.Exit(1)
 	}
 
 	if err := run(ctx, logger, *addr, *publicKey); err != nil {
-		logger.Fatal(err)
+		logger.Error(err.Error())
+		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, logger *log.Logger, addr uint, publicKey string) error {
+func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) error {
 	mux := http.NewServeMux()
 
 	reflector := grpcreflect.NewStaticReflector(
@@ -59,6 +64,8 @@ func run(ctx context.Context, logger *log.Logger, addr uint, publicKey string) e
 	// Add authorization middleware.
 	authorizer := auth.NewPasetoPublicKey(publicKey)
 
+	logger.Info("authorizing requests with public key")
+
 	// register the cache service
 	mux.Handle(cachev1connect.NewCacheServiceHandler(
 		cached.NewServer(authorizer, store),
@@ -69,9 +76,7 @@ func run(ctx context.Context, logger *log.Logger, addr uint, publicKey string) e
 	checker := grpchealth.NewStaticChecker(cachev1connect.CacheServiceName)
 	mux.Handle(grpchealth.NewHandler(checker))
 
-	// TODO(jasonmccallister) register health service on gRPC server using connectrpc.com/grpchealth
-
-	logger.Println("starting server on port", addr)
+	logger.Info("starting server", "port", addr)
 
 	// Use h2c so we can serve HTTP/2 without TLS.
 	return http.ListenAndServe(fmt.Sprintf(":%d", addr), h2c.NewHandler(mux, &http2.Server{}))
