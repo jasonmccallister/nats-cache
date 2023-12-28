@@ -27,20 +27,19 @@ func main() {
 
 	ctx := context.Background()
 
-	//logger := log.New(os.Stdout, "nats-cache: ", log.LstdFlags)
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
 
 	// if the public key is not set, exit
 	if *publicKey == "" {
-		logger.Error("public key is required")
+		logger.ErrorContext(ctx, "public key is required")
 		os.Exit(1)
 	}
 
 	if err := run(ctx, logger, *addr, *publicKey); err != nil {
-		logger.Error(err.Error())
-		os.Exit(1)
+		logger.ErrorContext(ctx, fmt.Errorf("failed to run server: %w", err).Error())
+		os.Exit(2)
 	}
 }
 
@@ -64,7 +63,7 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) 
 	// Add authorization middleware.
 	authorizer := auth.NewPasetoPublicKey(publicKey)
 
-	logger.Info("authorizing requests with public key")
+	logger.InfoContext(ctx, "authorizing requests with public key")
 
 	// register the cache service
 	mux.Handle(cachev1connect.NewCacheServiceHandler(
@@ -76,7 +75,7 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) 
 	checker := grpchealth.NewStaticChecker(cachev1connect.CacheServiceName)
 	mux.Handle(grpchealth.NewHandler(checker))
 
-	logger.Info("starting server", "port", addr)
+	logger.InfoContext(ctx, "starting server", "port", addr)
 
 	// Use h2c so we can serve HTTP/2 without TLS.
 	return http.ListenAndServe(fmt.Sprintf(":%d", addr), h2c.NewHandler(mux, &http2.Server{}))
