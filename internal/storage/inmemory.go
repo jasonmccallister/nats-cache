@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
-	"time"
 )
 
 type inMemory struct {
@@ -43,7 +42,7 @@ func (s *inMemory) Get(key string) ([]byte, error) {
 	fmt.Println(i)
 
 	// check if the item has expired
-	if (i.TTL > 0) && i.TTL < time.Now().Unix() {
+	if i.IsExpired() {
 		return nil, nil
 	}
 

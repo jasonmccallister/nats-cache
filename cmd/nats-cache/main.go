@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
@@ -16,6 +17,8 @@ import (
 	"github.com/jasonmccallister/nats-cache/internal/cached"
 	"github.com/jasonmccallister/nats-cache/internal/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
+	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -45,18 +48,12 @@ func main() {
 
 func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) error {
 	mux := http.NewServeMux()
-
-	reflector := grpcreflect.NewStaticReflector(
-		cachev1connect.CacheServiceName,
-	)
+	reflector := grpcreflect.NewStaticReflector(cachev1connect.CacheServiceName)
 	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
 
-	store := storage.NewInMemory()
-
-	var opts []connect.HandlerOption
-
 	// Add tracing middleware.
-	opts = append(opts, connect.WithInterceptors(
+	var handlerOpts []connect.HandlerOption
+	handlerOpts = append(handlerOpts, connect.WithInterceptors(
 		otelconnect.NewInterceptor(),
 	))
 
@@ -65,11 +62,32 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) 
 
 	logger.InfoContext(ctx, "authorizing requests with public key")
 
+	store := storage.NewInMemory()
 	// register the cache service
-	mux.Handle(cachev1connect.NewCacheServiceHandler(
-		cached.NewServer(authorizer, store),
-		opts...,
-	))
+	mux.Handle(cachev1connect.NewCacheServiceHandler(cached.NewServer(authorizer, store), handlerOpts...))
+
+	opts := &server.Options{
+		JetStream: true,
+		HTTPPort:  8222,
+	}
+
+	ns, err := server.NewServer(opts)
+	if err != nil {
+		return fmt.Errorf("failed to create nats server: %w", err)
+	}
+
+	ns.Start()
+
+	if !ns.ReadyForConnections(10 * time.Second) {
+		logger.ErrorContext(ctx, "nats server did not start")
+		os.Exit(1)
+	}
+
+	nc, err := nats.Connect(ns.ClientURL())
+	if err != nil {
+		return fmt.Errorf("failed to connect to nats server: %w", err)
+	}
+	defer nc.Close()
 
 	// register the health service
 	checker := grpchealth.NewStaticChecker(cachev1connect.CacheServiceName)
