@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 
 	"github.com/nats-io/nats.go/jetstream"
 )
@@ -46,6 +47,29 @@ func (n *natsKeyValue) Set(ctx context.Context, key string, value []byte, ttl in
 
 	if _, err := n.bucket.Put(ctx, key, b); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (n *natsKeyValue) Purge(ctx context.Context, prefix string) error {
+	keys, err := n.bucket.Keys(ctx)
+	if err != nil {
+		return err
+	}
+
+	for _, key := range keys {
+		if prefix != "" {
+			if strings.HasPrefix(key, prefix) {
+				if err := n.bucket.Delete(ctx, key); err != nil {
+					return err
+				}
+			}
+		} else {
+			if err := n.bucket.Delete(ctx, key); err != nil {
+				return err
+			}
+		}
 	}
 
 	return nil

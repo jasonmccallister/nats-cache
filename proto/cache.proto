@@ -44,6 +44,16 @@ message DeleteResponse {
     bool deleted = 1;
 }
 
+// PurgeRequest is the request message for the Purge method.
+message PurgeRequest {
+    optional uint32 database = 1;
+    optional string prefix = 2;
+}
+
+message PurgeResponse {
+    bool purged = 1;
+}
+
 service CacheService {
     // Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
     rpc Get(stream GetRequest) returns (stream GetResponse) {}
@@ -53,4 +63,7 @@ service CacheService {
 
     // Delete is responsible for deleting a value from the cache.
     rpc Delete(stream DeleteRequest) returns (stream DeleteResponse) {}
+
+    // Purge is responsible for purging all values from the cache.
+    rpc Purge(stream PurgeRequest) returns (stream PurgeResponse) {}
 }

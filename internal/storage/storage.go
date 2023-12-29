@@ -23,7 +23,8 @@ func (i Item) IsExpired() bool {
 
 // Store is an interface that defines the methods needed to interact with a storage engine such as NATS KV
 type Store interface {
+	Delete(ctx context.Context, key string) error
 	Get(ctx context.Context, key string) ([]byte, error)
 	Set(ctx context.Context, key string, value []byte, ttl int64) error
-	Delete(ctx context.Context, key string) error
+	Purge(ctx context.Context, prefix string) error
 }

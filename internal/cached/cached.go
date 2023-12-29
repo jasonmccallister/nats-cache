@@ -123,6 +123,36 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 	}
 }
 
+// Purge implements cachev1connect.CacheServiceHandler.
+func (s *server) Purge(ctx context.Context, stream *connect.BidiStream[cachev1.PurgeRequest, cachev1.PurgeResponse]) error {
+	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
+	if err != nil {
+		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+	}
+
+	for {
+		req, err := stream.Receive()
+		if err != nil {
+			return err
+		}
+
+		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetPrefix())
+		if err != nil {
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+		}
+
+		if err := s.Store.Purge(ctx, internalKey); err != nil {
+			return err
+		}
+
+		if err := stream.Send(&cachev1.PurgeResponse{
+			Purged: true,
+		}); err != nil {
+			return err
+		}
+	}
+}
+
 // NewServer returns a new server for the cache service.
 func NewServer(a auth.Authorizer, s storage.Store) cachev1connect.CacheServiceHandler {
 	return &server{

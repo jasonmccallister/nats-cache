@@ -70,6 +70,21 @@ func (s *inMemory) Set(ctx context.Context, key string, value []byte, ttl int64)
 	return nil
 }
 
+func (s *inMemory) Purge(ctx context.Context, prefix string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for k := range s.db {
+		if prefix != "" && k == prefix {
+			delete(s.db, k)
+		} else if prefix == "" {
+			delete(s.db, k)
+		}
+	}
+
+	return nil
+}
+
 // NewInMemory returns a new in memory storage engine
 func NewInMemory() Store {
 	return &inMemory{
