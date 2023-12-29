@@ -27,13 +27,39 @@ import (
 func main() {
 	addr := flag.Uint("addr", 50051, "address of the server")
 	publicKey := flag.String("public-key", "", "The public key to use for authorizing requests")
+	logLevel := flag.String("log-level", "info", "The log level to use")
+	logFormat := flag.String("log-format", "text", "The log format to use")
 	flag.Parse()
 
 	ctx := context.Background()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
+	var logLevelOption slog.Level
+	switch *logLevel {
+	case "debug":
+		logLevelOption = slog.LevelDebug
+	case "info":
+		logLevelOption = slog.LevelInfo
+	case "warn":
+		logLevelOption = slog.LevelWarn
+	case "error":
+		logLevelOption = slog.LevelError
+	default:
+		logLevelOption = slog.LevelInfo
+	}
+
+	var logHandler slog.Handler
+	switch *logFormat {
+	case "json":
+		logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			Level: logLevelOption,
+		})
+	default:
+		logHandler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+			Level: logLevelOption,
+		})
+	}
+
+	logger := slog.New(logHandler)
 
 	// if the public key is not set, exit
 	if *publicKey == "" {
