@@ -8,6 +8,7 @@ require (
 	connectrpc.com/grpchealth v1.3.0
 	connectrpc.com/grpcreflect v1.2.0
 	connectrpc.com/otelconnect v0.6.0
+	github.com/nats-io/nats.go v1.31.0
 	google.golang.org/protobuf v1.32.0
 )
 
@@ -18,7 +19,6 @@ require (
 	github.com/klauspost/compress v1.17.4 // indirect
 	github.com/minio/highwayhash v1.0.2 // indirect
 	github.com/nats-io/jwt/v2 v2.5.3 // indirect
-	github.com/nats-io/nats.go v1.31.0 // indirect
 	github.com/nats-io/nkeys v0.4.6 // indirect
 	github.com/nats-io/nuid v1.0.1 // indirect
 	go.opentelemetry.io/otel v1.19.0 // indirect

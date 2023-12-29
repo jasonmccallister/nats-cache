@@ -19,6 +19,7 @@ import (
 	"github.com/jasonmccallister/nats-cache/internal/storage"
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
@@ -47,34 +48,14 @@ func main() {
 }
 
 func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) error {
-	mux := http.NewServeMux()
-	reflector := grpcreflect.NewStaticReflector(cachev1connect.CacheServiceName)
-	mux.Handle(grpcreflect.NewHandlerV1Alpha(reflector))
-
-	// Add tracing middleware.
-	var handlerOpts []connect.HandlerOption
-	handlerOpts = append(handlerOpts, connect.WithInterceptors(
-		otelconnect.NewInterceptor(),
-	))
-
-	// Add authorization middleware.
-	authorizer := auth.NewPasetoPublicKey(publicKey)
-
-	logger.InfoContext(ctx, "authorizing requests with public key")
-
-	store := storage.NewInMemory()
-	// register the cache service
-	mux.Handle(cachev1connect.NewCacheServiceHandler(cached.NewServer(authorizer, store), handlerOpts...))
-
-	opts := &server.Options{
+	ns, err := server.NewServer(&server.Options{
 		JetStream: true,
-		HTTPPort:  8222,
-	}
-
-	ns, err := server.NewServer(opts)
+		HTTPPort:  8222, // disable http for production
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create nats server: %w", err)
 	}
+	defer ns.Shutdown()
 
 	ns.Start()
 
@@ -89,9 +70,41 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) 
 	}
 	defer nc.Close()
 
+	js, err := jetstream.New(nc)
+	if err != nil {
+		return fmt.Errorf("failed to create jetstream kv: %w", err)
+	}
+
+	kv, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket:   "cache",
+		MaxBytes: 1024 * 1024,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create jetstream kv: %w", err)
+	}
+
+	store := storage.NewNATSKeyValue(kv)
+	authorizer := auth.NewPasetoPublicKey(publicKey)
+
+	var opts []connect.HandlerOption
+	opts = append(opts, connect.WithInterceptors(otelconnect.NewInterceptor()))
+
+	mux := http.NewServeMux()
+
+	// register the reflection service
+	reflectPath, reflectHandler := grpcreflect.NewHandlerV1Alpha(grpcreflect.NewStaticReflector(cachev1connect.CacheServiceName))
+	logger.InfoContext(ctx, "registering reflection service", "service", cachev1connect.CacheServiceName, "path", reflectPath)
+	mux.Handle(reflectPath, reflectHandler)
+
+	// register the cache service
+	cachePath, cacheHandler := cachev1connect.NewCacheServiceHandler(cached.NewServer(authorizer, store), opts...)
+	logger.InfoContext(ctx, "registering cache service", "service", cachev1connect.CacheServiceName, "path", cachePath)
+	mux.Handle(cachePath, cacheHandler)
+
 	// register the health service
-	checker := grpchealth.NewStaticChecker(cachev1connect.CacheServiceName)
-	mux.Handle(grpchealth.NewHandler(checker))
+	healthCheck, healthCheckHandler := grpchealth.NewHandler(grpchealth.NewStaticChecker(cachev1connect.CacheServiceName))
+	logger.InfoContext(ctx, "registering health check", "service", cachev1connect.CacheServiceName, "path", healthCheck)
+	mux.Handle(healthCheck, healthCheckHandler)
 
 	logger.InfoContext(ctx, "starting server", "port", addr)
 
