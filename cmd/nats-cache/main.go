@@ -29,6 +29,7 @@ func main() {
 	publicKey := flag.String("public-key", "", "The public key to use for authorizing requests")
 	logLevel := flag.String("log-level", "info", "The log level to use")
 	logFormat := flag.String("log-format", "text", "The log format to use")
+	logOutput := flag.String("log-output", "stdout", "The log output to use")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -47,14 +48,22 @@ func main() {
 		logLevelOption = slog.LevelInfo
 	}
 
+	var output *os.File
+	switch *logOutput {
+	case "stdout":
+		output = os.Stdout
+	default:
+		output = os.Stdout
+	}
+
 	var logHandler slog.Handler
 	switch *logFormat {
 	case "json":
-		logHandler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		logHandler = slog.NewJSONHandler(output, &slog.HandlerOptions{
 			Level: logLevelOption,
 		})
 	default:
-		logHandler = slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		logHandler = slog.NewTextHandler(output, &slog.HandlerOptions{
 			Level: logLevelOption,
 		})
 	}
