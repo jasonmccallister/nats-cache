@@ -1,6 +1,9 @@
 package storage
 
-import "time"
+import (
+	"context"
+	"time"
+)
 
 // Item is a struct that holds the value and ttl of a key.
 // Since NATS does not natively support a TTL per key we need to store it in the value.
@@ -20,7 +23,7 @@ func (i Item) IsExpired() bool {
 
 // Store is an interface that defines the methods needed to interact with a storage engine such as NATS KV
 type Store interface {
-	Get(key string) ([]byte, error)
-	Set(key string, value []byte, ttl int64) error
-	Delete(key string) error
+	Get(ctx context.Context, key string) ([]byte, error)
+	Set(ctx context.Context, key string, value []byte, ttl int64) error
+	Delete(ctx context.Context, key string) error
 }

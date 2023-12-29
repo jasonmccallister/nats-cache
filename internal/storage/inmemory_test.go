@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"reflect"
 	"sync"
@@ -56,7 +57,7 @@ func Test_inMemory_Delete(t *testing.T) {
 				mu: tt.fields.mu,
 				db: tt.fields.db,
 			}
-			if err := s.Delete(tt.args.key); (err != nil) != tt.wantErr {
+			if err := s.Delete(context.TODO(), tt.args.key); (err != nil) != tt.wantErr {
 				t.Errorf("inMemory.Delete() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
@@ -141,7 +142,7 @@ func Test_inMemory_Get(t *testing.T) {
 				mu: tt.fields.mu,
 				db: tt.fields.db,
 			}
-			got, err := s.Get(tt.args.key)
+			got, err := s.Get(context.TODO(), tt.args.key)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("inMemory.Get() error = %v, wantErr %v", err, tt.wantErr)
 				return

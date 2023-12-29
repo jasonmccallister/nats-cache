@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -12,7 +13,7 @@ type inMemory struct {
 }
 
 // Delete implements Store.
-func (s *inMemory) Delete(key string) error {
+func (s *inMemory) Delete(ctx context.Context, key string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -26,7 +27,7 @@ func (s *inMemory) Delete(key string) error {
 }
 
 // Get implements Store.
-func (s *inMemory) Get(key string) ([]byte, error) {
+func (s *inMemory) Get(ctx context.Context, key string) ([]byte, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -50,7 +51,7 @@ func (s *inMemory) Get(key string) ([]byte, error) {
 }
 
 // Set implements Store.
-func (s *inMemory) Set(key string, value []byte, ttl int64) error {
+func (s *inMemory) Set(ctx context.Context, key string, value []byte, ttl int64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

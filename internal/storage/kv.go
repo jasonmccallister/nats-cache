@@ -12,8 +12,8 @@ type natsKeyValue struct {
 	bucket jetstream.KeyValue
 }
 
-func (n *natsKeyValue) Get(key string) ([]byte, error) {
-	v, err := n.bucket.Get(context.Background(), key)
+func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, error) {
+	v, err := n.bucket.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			return nil, nil
@@ -33,7 +33,7 @@ func (n *natsKeyValue) Get(key string) ([]byte, error) {
 	return i.Value, nil
 }
 
-func (n *natsKeyValue) Set(key string, value []byte, ttl int64) error {
+func (n *natsKeyValue) Set(ctx context.Context, key string, value []byte, ttl int64) error {
 	i := Item{
 		Value: value,
 		TTL:   ttl, // this should already be in unix time if its more than 0
@@ -44,15 +44,15 @@ func (n *natsKeyValue) Set(key string, value []byte, ttl int64) error {
 		return err
 	}
 
-	if _, err := n.bucket.Put(context.Background(), key, b); err != nil {
+	if _, err := n.bucket.Put(ctx, key, b); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (n *natsKeyValue) Delete(key string) error {
-	return n.bucket.Delete(context.Background(), key)
+func (n *natsKeyValue) Delete(ctx context.Context, key string) error {
+	return n.bucket.Delete(ctx, key)
 }
 
 // NewNATSKeyValue returns a new instance of a natsKeyValue.

@@ -39,7 +39,7 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 		}
 
 		// maybe consider removing the db from the delete request and rely on a generic key?
-		if err := s.Store.Delete(internalKey); err != nil {
+		if err := s.Store.Delete(ctx, internalKey); err != nil {
 			return err
 		}
 
@@ -69,7 +69,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		value, err := s.Store.Get(internalKey)
+		value, err := s.Store.Get(ctx, internalKey)
 		if err != nil {
 			stream.Send(&cachev1.GetResponse{
 				Value: nil,
@@ -110,7 +110,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			ttl = time.Now().Add(time.Duration(req.GetTtl()) * time.Second).Unix()
 		}
 
-		if err := s.Store.Set(internalKey, req.GetValue(), ttl); err != nil {
+		if err := s.Store.Set(ctx, internalKey, req.GetValue(), ttl); err != nil {
 			return err
 		}
 
