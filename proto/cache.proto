@@ -13,9 +13,7 @@ message GetRequest {
 
 // GetResponse is the response message for the Get method. 
 message GetResponse {
-    uint32 database = 1;
-    string key = 2;
-    bytes value = 3;
+    bytes value = 1;
 }
 
 // SetGetRequest is the request message for the Set method. The database is optional and 
@@ -30,10 +28,8 @@ message SetRequest {
 }
 
 message SetResponse {
-    uint32 database = 1;
-    string key = 2;
-    bytes value = 3;
-    uint32 ttl = 4;
+    bytes value = 1;
+    uint32 ttl = 2;
 }
 
 // DeleteRequest is the request message for the Delete method. The database is optional and
@@ -45,8 +41,7 @@ message DeleteRequest {
 }
 
 message DeleteResponse {
-    uint32 database = 1;
-    string key = 2;
+    bool deleted = 1;
 }
 
 service CacheService {

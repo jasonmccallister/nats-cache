@@ -33,7 +33,7 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 			return err
 		}
 
-		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
@@ -44,8 +44,7 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 		}
 
 		if err := stream.Send(&cachev1.DeleteResponse{
-			Database: req.GetDatabase(),
-			Key:      key,
+			Deleted: true,
 		}); err != nil {
 			return err
 		}
@@ -73,18 +72,14 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 		value, err := s.Store.Get(internalKey)
 		if err != nil {
 			stream.Send(&cachev1.GetResponse{
-				Database: req.GetDatabase(),
-				Key:      req.GetKey(),
-				Value:    nil,
+				Value: nil,
 			})
 
 			continue
 		}
 
 		if err := stream.Send(&cachev1.GetResponse{
-			Database: req.GetDatabase(),
-			Key:      req.GetKey(),
-			Value:    value,
+			Value: value,
 		}); err != nil {
 			return err
 		}
@@ -120,10 +115,8 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 		}
 
 		if err := stream.Send(&cachev1.SetResponse{
-			Database: req.GetDatabase(),
-			Key:      req.GetKey(),
-			Value:    req.GetValue(),
-			Ttl:      uint32(ttl),
+			Value: req.GetValue(),
+			Ttl:   uint32(ttl),
 		}); err != nil {
 			return err
 		}
