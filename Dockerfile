@@ -1,4 +1,4 @@
-FROM golang:latest-alpine AS builder
+FROM golang:1.21-alpine AS builder
 WORKDIR /app
 COPY . .
 RUN go build -o /bin/nats-cache ./cmd/nats-cache
