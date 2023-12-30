@@ -1,6 +1,6 @@
 name: Build Image
 on:
-  workflow_dispatch: {}
+  workflow_dispatch: { }
   push:
     branches:
       - 'releases/**'
@@ -22,8 +22,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         run: |
-        # Substitute BIN for your bin directory.
-        # Substitute VERSION for the current released version.
+          # Substitute BIN for your bin directory.
+          # Substitute VERSION for the current released version.
           BIN="/usr/local/bin" && \
           VERSION="1.28.1" && \
           curl -sSL \
