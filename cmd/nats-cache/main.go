@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -13,6 +16,7 @@ import (
 	"connectrpc.com/grpchealth"
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/otelconnect"
+	"github.com/jasonmccallister/nats-cache/credentials"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
 	"github.com/jasonmccallister/nats-cache/internal/gen/cachev1connect"
@@ -30,6 +34,8 @@ func main() {
 	logLevel := flag.String("log-level", "info", "The log level to use")
 	logFormat := flag.String("log-format", "text", "The log format to use")
 	logOutput := flag.String("log-output", "stdout", "The log output to use")
+	natsNKEY := flag.String("nats-nkey", "", "The NATS nkey to use for NGS")
+	natsJWT := flag.String("nats-jwt", "", "The NATS jwt to use for NGS")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -38,8 +44,6 @@ func main() {
 	switch *logLevel {
 	case "debug":
 		logLevelOption = slog.LevelDebug
-	case "info":
-		logLevelOption = slog.LevelInfo
 	case "warn":
 		logLevelOption = slog.LevelWarn
 	case "error":
@@ -50,8 +54,8 @@ func main() {
 
 	var output *os.File
 	switch *logOutput {
-	case "stdout":
-		output = os.Stdout
+	case "stderr":
+		output = os.Stderr
 	default:
 		output = os.Stdout
 	}
@@ -76,16 +80,46 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(ctx, logger, *addr, *publicKey); err != nil {
+	// if the nats nkey is not set, exit
+	if *natsNKEY == "" {
+		logger.ErrorContext(ctx, "nats-nkey is required")
+		os.Exit(1)
+	}
+
+	// if the nats jwt is not set, exit
+	if *natsJWT == "" {
+		logger.ErrorContext(ctx, "nats-jwt is required")
+		os.Exit(1)
+	}
+
+	if err := run(ctx, logger, *addr, *publicKey, *natsJWT, *natsNKEY); err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to run server: %w", err).Error())
 		os.Exit(2)
 	}
 }
 
-func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) error {
+func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey, jwt, nkey string) error {
+	ngs, err := url.Parse("tls://connect.ngs.global")
+	if err != nil {
+		return fmt.Errorf("failed to parse ngs url: %w", err)
+	}
+
+	creds, err := credentials.Generate(nkey, jwt, "")
+	if err != nil {
+		return fmt.Errorf("failed to generate credentials file: %w", err)
+	}
+
 	ns, err := server.NewServer(&server.Options{
 		JetStream: true,
-		HTTPPort:  8222, // disable http for production
+		HTTPPort:  8222,
+		LeafNode: server.LeafNodeOpts{
+			Remotes: []*server.RemoteLeafOpts{
+				{
+					URLs:        []*url.URL{ngs},
+					Credentials: creds,
+				},
+			},
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create nats server: %w", err)
@@ -110,12 +144,27 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) 
 		return fmt.Errorf("failed to create jetstream kv: %w", err)
 	}
 
-	kv, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket:   "cache",
-		MaxBytes: 1024 * 1024,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create jetstream kv: %w", err)
+	// TODO(jasonmccallister) make this configurable
+	var kv jetstream.KeyValue
+	kv, err = js.KeyValue(ctx, fmt.Sprintf("local_cache%d", rand.Int()))
+	if err != nil && errors.Is(err, jetstream.ErrBucketNotFound) {
+		logger.InfoContext(ctx, "creating new kv bucket")
+		kv, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+			Bucket:       fmt.Sprintf("local_cache%d", rand.Int()),
+			MaxBytes:     1024 * 1024,
+			MaxValueSize: 1024 * 1024,
+			Mirror: &jetstream.StreamSource{
+				Name: "KV_cache",
+			},
+			//Sources: []*jetstream.StreamSource{
+			//	{
+			//		Name: "KV_cache",
+			//	},
+			//},
+		})
+		if err != nil {
+			return fmt.Errorf("failed to create jetstream kv: %w", err)
+		}
 	}
 
 	store := storage.NewNATSKeyValue(kv)
@@ -124,20 +173,24 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string) 
 	var opts []connect.HandlerOption
 	opts = append(opts, connect.WithInterceptors(otelconnect.NewInterceptor()))
 
+	// create all of the services
+	cachePath, cacheHandler := cachev1connect.NewCacheServiceHandler(cached.NewServer(authorizer, store), opts...)
+	healthCheck, healthCheckHandler := grpchealth.NewHandler(grpchealth.NewStaticChecker(cachev1connect.CacheServiceName))
+	reflectPath, reflectHandler := grpcreflect.NewHandlerV1Alpha(
+		grpcreflect.NewStaticReflector(cachev1connect.CacheServiceName, grpchealth.HealthV1ServiceName),
+	)
+
 	mux := http.NewServeMux()
 
 	// register the reflection service
-	reflectPath, reflectHandler := grpcreflect.NewHandlerV1Alpha(grpcreflect.NewStaticReflector(cachev1connect.CacheServiceName))
-	logger.InfoContext(ctx, "registering reflection service", "service", cachev1connect.CacheServiceName, "path", reflectPath)
+	logger.InfoContext(ctx, "registering reflection service", "service", reflectPath, "path", reflectPath)
 	mux.Handle(reflectPath, reflectHandler)
 
 	// register the cache service
-	cachePath, cacheHandler := cachev1connect.NewCacheServiceHandler(cached.NewServer(authorizer, store), opts...)
 	logger.InfoContext(ctx, "registering cache service", "service", cachev1connect.CacheServiceName, "path", cachePath)
 	mux.Handle(cachePath, cacheHandler)
 
 	// register the health service
-	healthCheck, healthCheckHandler := grpchealth.NewHandler(grpchealth.NewStaticChecker(cachev1connect.CacheServiceName))
 	logger.InfoContext(ctx, "registering health check", "service", cachev1connect.CacheServiceName, "path", healthCheck)
 	mux.Handle(healthCheck, healthCheckHandler)
 
