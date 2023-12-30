@@ -1,31 +1,24 @@
 package main
 
 import (
-	"context"
-	"errors"
-	"flag"
-	"fmt"
-	"log/slog"
-	"math/rand"
-	"net/http"
-	"net/url"
-	"os"
-	"time"
-
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/otelconnect"
-	"github.com/jasonmccallister/nats-cache/credentials"
+	"context"
+	"flag"
+	"fmt"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
 	"github.com/jasonmccallister/nats-cache/internal/gen/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"log/slog"
+	"net/http"
+	"os"
 )
 
 func main() {
@@ -99,41 +92,7 @@ func main() {
 }
 
 func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey, jwt, nkey string) error {
-	ngs, err := url.Parse("tls://connect.ngs.global")
-	if err != nil {
-		return fmt.Errorf("failed to parse ngs url: %w", err)
-	}
-
-	creds, err := credentials.Generate(nkey, jwt, "")
-	if err != nil {
-		return fmt.Errorf("failed to generate credentials file: %w", err)
-	}
-
-	ns, err := server.NewServer(&server.Options{
-		JetStream: true,
-		HTTPPort:  8222,
-		LeafNode: server.LeafNodeOpts{
-			Remotes: []*server.RemoteLeafOpts{
-				{
-					URLs:        []*url.URL{ngs},
-					Credentials: creds,
-				},
-			},
-		},
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create nats server: %w", err)
-	}
-	defer ns.Shutdown()
-
-	ns.Start()
-
-	if !ns.ReadyForConnections(10 * time.Second) {
-		logger.ErrorContext(ctx, "nats server did not start")
-		os.Exit(1)
-	}
-
-	nc, err := nats.Connect(ns.ClientURL())
+	nc, err := nats.Connect("tls://connect.ngs.global", nats.UserJWTAndSeed(jwt, nkey), nats.Name(os.Getenv("HOSTNAME")))
 	if err != nil {
 		return fmt.Errorf("failed to connect to nats server: %w", err)
 	}
@@ -145,26 +104,9 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey, jwt, nk
 	}
 
 	// TODO(jasonmccallister) make this configurable
-	var kv jetstream.KeyValue
-	kv, err = js.KeyValue(ctx, fmt.Sprintf("local_cache%d", rand.Int()))
-	if err != nil && errors.Is(err, jetstream.ErrBucketNotFound) {
-		logger.InfoContext(ctx, "creating new kv bucket")
-		kv, err = js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
-			Bucket:       fmt.Sprintf("local_cache%d", rand.Int()),
-			MaxBytes:     1024 * 1024,
-			MaxValueSize: 1024 * 1024,
-			Mirror: &jetstream.StreamSource{
-				Name: "KV_cache",
-			},
-			//Sources: []*jetstream.StreamSource{
-			//	{
-			//		Name: "KV_cache",
-			//	},
-			//},
-		})
-		if err != nil {
-			return fmt.Errorf("failed to create jetstream kv: %w", err)
-		}
+	kv, err := js.KeyValue(ctx, "cache")
+	if err != nil {
+		return fmt.Errorf("failed to create jetstream kv: %w", err)
 	}
 
 	store := storage.NewNATSKeyValue(kv)
