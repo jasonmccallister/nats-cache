@@ -28,10 +28,22 @@ func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, error) {
 
 	// check if the item has expired
 	if i.IsExpired() {
+		defer n.purgeKey(ctx, key)
+
 		return nil, nil
 	}
 
 	return i.Value, nil
+}
+
+func (n *natsKeyValue) purgeKey(ctx context.Context, k ...string) error {
+	for _, key := range k {
+		if err := n.bucket.Purge(ctx, key); err != nil {
+			//
+		}
+	}
+
+	return nil
 }
 
 func (n *natsKeyValue) Set(ctx context.Context, key string, value []byte, ttl int64) error {

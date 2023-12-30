@@ -23,12 +23,12 @@ import (
 
 func main() {
 	addr := flag.Uint("addr", 50051, "address of the server")
-	publicKey := flag.String("public-key", "", "The public key to use for authorizing requests")
+	publicKey := flag.String("public-key", os.Getenv("NC_PUBLIC_KEY"), "The public key to use for authorizing requests")
 	logLevel := flag.String("log-level", "info", "The log level to use")
 	logFormat := flag.String("log-format", "text", "The log format to use")
 	logOutput := flag.String("log-output", "stdout", "The log output to use")
-	natsNKEY := flag.String("nats-nkey", "", "The NATS nkey to use for NGS")
-	natsJWT := flag.String("nats-jwt", "", "The NATS jwt to use for NGS")
+	natsNKEY := flag.String("nats-nkey", os.Getenv("NATS_NKEY"), "The NATS nkey to use for NGS")
+	natsJWT := flag.String("nats-jwt", os.Getenv("NATS_JWT"), "The NATS jwt to use for NGS")
 	flag.Parse()
 
 	ctx := context.Background()
