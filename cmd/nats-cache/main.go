@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
-	"github.com/jasonmccallister/nats-cache/internal/gen/cachev1connect"
+	"github.com/jasonmccallister/nats-cache/internal/gen/cache/v1/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
