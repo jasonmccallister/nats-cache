@@ -7,6 +7,6 @@ run: build
 	./bin/nats-cache -public-key=$(PUB_KEY) -log-level=debug -log-format=text
 
 generate:
-	buf generate proto
+	buf generate cache/v1
 nats-server:
 	nats-server -js -m 8222 -p 4222
