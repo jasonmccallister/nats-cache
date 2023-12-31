@@ -15,12 +15,10 @@ jobs:
   buf:
     name: Build buf
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v2
 
       - name: Set up Go
-        uses: actions/setup-go@v2
         run: |
           # Substitute BIN for your bin directory.
           # Substitute VERSION for the current released version.
@@ -35,6 +33,7 @@ jobs:
         run: |
           buf registry login buf.build --username 'jasonmccallister' --token-stdin <<< "${{ secrets.BUF_PASSWORD }}"
           buf push
+
 
   build:
     name: Build image
