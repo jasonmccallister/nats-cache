@@ -109,7 +109,7 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey, jwt, nk
 		return fmt.Errorf("failed to create jetstream kv: %w", err)
 	}
 
-	store := storage.NewNATSKeyValue(kv)
+	store := storage.NewNATSKeyValue(kv, logger)
 	authorizer := auth.NewPasetoPublicKey(publicKey)
 
 	var opts []connect.HandlerOption
