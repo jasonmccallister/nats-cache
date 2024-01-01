@@ -17,8 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - name: Set output
+        id: vars
+        run: echo "tag=${GITHUB_REF#refs/*/}" >> $GITHUB_OUTPUT
 
-      - name: Set up Go
+      - name: Install buf
         run: |
           # Substitute BIN for your bin directory.
           # Substitute VERSION for the current released version.
@@ -32,8 +35,7 @@ jobs:
       - name: Run buf
         run: |
           buf registry login buf.build --username 'jasonmccallister' --token-stdin <<< "${{ secrets.BUF_PASSWORD }}"
-          buf push
-
+          buf push --tag "${{ steps.vars.outputs.tag }}"
 
   build:
     name: Build image
