@@ -33,6 +33,8 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// CacheServiceExistsProcedure is the fully-qualified name of the CacheService's Exists RPC.
+	CacheServiceExistsProcedure = "/cache.v1.CacheService/Exists"
 	// CacheServiceGetProcedure is the fully-qualified name of the CacheService's Get RPC.
 	CacheServiceGetProcedure = "/cache.v1.CacheService/Get"
 	// CacheServiceSetProcedure is the fully-qualified name of the CacheService's Set RPC.
@@ -46,6 +48,7 @@ const (
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
 	cacheServiceServiceDescriptor      = v1.File_cache_v1_cache_proto.Services().ByName("CacheService")
+	cacheServiceExistsMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("Exists")
 	cacheServiceGetMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Get")
 	cacheServiceSetMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Set")
 	cacheServiceDeleteMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("Delete")
@@ -54,6 +57,7 @@ var (
 
 // CacheServiceClient is a client for the cache.v1.CacheService service.
 type CacheServiceClient interface {
+	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
 	Get(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
 	// Set is responsible for setting a value in the cache.
@@ -74,6 +78,12 @@ type CacheServiceClient interface {
 func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) CacheServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &cacheServiceClient{
+		exists: connect.NewClient[v1.ExistsRequest, v1.ExistsResponse](
+			httpClient,
+			baseURL+CacheServiceExistsProcedure,
+			connect.WithSchema(cacheServiceExistsMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		get: connect.NewClient[v1.GetRequest, v1.GetResponse](
 			httpClient,
 			baseURL+CacheServiceGetProcedure,
@@ -103,10 +113,16 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // cacheServiceClient implements CacheServiceClient.
 type cacheServiceClient struct {
+	exists *connect.Client[v1.ExistsRequest, v1.ExistsResponse]
 	get    *connect.Client[v1.GetRequest, v1.GetResponse]
 	set    *connect.Client[v1.SetRequest, v1.SetResponse]
 	delete *connect.Client[v1.DeleteRequest, v1.DeleteResponse]
 	purge  *connect.Client[v1.PurgeRequest, v1.PurgeResponse]
+}
+
+// Exists calls cache.v1.CacheService.Exists.
+func (c *cacheServiceClient) Exists(ctx context.Context, req *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error) {
+	return c.exists.CallUnary(ctx, req)
 }
 
 // Get calls cache.v1.CacheService.Get.
@@ -131,6 +147,7 @@ func (c *cacheServiceClient) Purge(ctx context.Context) *connect.BidiStreamForCl
 
 // CacheServiceHandler is an implementation of the cache.v1.CacheService service.
 type CacheServiceHandler interface {
+	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
 	Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
 	// Set is responsible for setting a value in the cache.
@@ -147,6 +164,12 @@ type CacheServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	cacheServiceExistsHandler := connect.NewUnaryHandler(
+		CacheServiceExistsProcedure,
+		svc.Exists,
+		connect.WithSchema(cacheServiceExistsMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	cacheServiceGetHandler := connect.NewBidiStreamHandler(
 		CacheServiceGetProcedure,
 		svc.Get,
@@ -173,6 +196,8 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 	)
 	return "/cache.v1.CacheService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case CacheServiceExistsProcedure:
+			cacheServiceExistsHandler.ServeHTTP(w, r)
 		case CacheServiceGetProcedure:
 			cacheServiceGetHandler.ServeHTTP(w, r)
 		case CacheServiceSetProcedure:
@@ -189,6 +214,10 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 
 // UnimplementedCacheServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedCacheServiceHandler struct{}
+
+func (UnimplementedCacheServiceHandler) Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Exists is not implemented"))
+}
 
 func (UnimplementedCacheServiceHandler) Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Get is not implemented"))

@@ -2,6 +2,15 @@ syntax = "proto3";
 
 package cache.v1;
 
+message ExistsRequest {
+    optional uint32 database = 1;
+    repeated string keys = 2;
+}
+
+message ExistsResponse {
+    repeated string keys = 1;
+}
+
 // GetRequest is the request message for the Get method. The database is optional and 
 // used primarily as a prefix for the key. This supports applications that use the 
 // service as a mutex, sessions, or cache without making additional accounts.
@@ -55,6 +64,7 @@ message PurgeResponse {
 }
 
 service CacheService {
+    rpc Exists(ExistsRequest) returns (ExistsResponse) {}
     // Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
     rpc Get(stream GetRequest) returns (stream GetResponse) {}
     

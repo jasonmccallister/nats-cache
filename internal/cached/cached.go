@@ -51,6 +51,35 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 	}
 }
 
+// Exists checks if any of the provided keys exists. It will return the keys (by name) that do exist.
+func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.ExistsRequest]) (*connect.Response[cachev1.ExistsResponse], error) {
+	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+	}
+
+	var found []string
+	for _, k := range req.Msg.GetKeys() {
+		internalKey, _, err := keygen.FromToken(*t, req.Msg.GetDatabase(), k)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+		}
+
+		val, err := s.Store.Get(ctx, internalKey)
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get key: %w", err))
+		}
+
+		if val != nil && len(val) > 0 {
+			found = append(found, k)
+		}
+	}
+
+	return connect.NewResponse(&cachev1.ExistsResponse{
+		Keys: found,
+	}), nil
+}
+
 // Get implements cachev1connect.CacheServiceHandler.
 func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.GetRequest, cachev1.GetResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
