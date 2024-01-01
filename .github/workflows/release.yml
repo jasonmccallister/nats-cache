@@ -35,6 +35,7 @@ jobs:
       - name: Run buf
         run: |
           buf registry login buf.build --username 'jasonmccallister' --token-stdin <<< "${{ secrets.BUF_PASSWORD }}"
+          buf build
           buf push --tag "${{ steps.vars.outputs.tag }}"
 
   build:
