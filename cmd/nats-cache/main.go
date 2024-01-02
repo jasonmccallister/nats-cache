@@ -116,7 +116,7 @@ func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey, jwt, nk
 	opts = append(opts, connect.WithInterceptors(otelconnect.NewInterceptor()))
 
 	// create all of the services
-	cachePath, cacheHandler := cachev1connect.NewCacheServiceHandler(cached.NewServer(authorizer, store), opts...)
+	cachePath, cacheHandler := cachev1connect.NewCacheServiceHandler(cached.NewServer(logger, authorizer, store), opts...)
 	healthCheck, healthCheckHandler := grpchealth.NewHandler(grpchealth.NewStaticChecker(cachev1connect.CacheServiceName))
 	reflectPath, reflectHandler := grpcreflect.NewHandlerV1Alpha(
 		grpcreflect.NewStaticReflector(cachev1connect.CacheServiceName, grpchealth.HealthV1ServiceName),

@@ -3,6 +3,7 @@ package cached
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"connectrpc.com/connect"
@@ -16,6 +17,7 @@ import (
 type server struct {
 	Authorizer auth.Authorizer
 	Store      storage.Store
+	Logger     *slog.Logger
 
 	cachev1connect.UnimplementedCacheServiceHandler
 }
@@ -24,28 +26,33 @@ type server struct {
 func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.DeleteRequest, cachev1.DeleteResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
 		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
 	for {
 		req, err := stream.Receive()
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
 			return err
 		}
 
 		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
 		// maybe consider removing the db from the delete request and rely on a generic key?
 		if err := s.Store.Delete(ctx, internalKey); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to delete key", "error", err.Error())
 			return err
 		}
 
 		if err := stream.Send(&cachev1.DeleteResponse{
 			Deleted: true,
 		}); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
 			return err
 		}
 	}
@@ -55,6 +62,7 @@ func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.
 func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.ExistsRequest]) (*connect.Response[cachev1.ExistsResponse], error) {
 	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
 		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
@@ -62,11 +70,13 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 	for _, k := range req.Msg.GetKeys() {
 		internalKey, _, err := keygen.FromToken(*t, req.Msg.GetDatabase(), k)
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
 		val, _, err := s.Store.Get(ctx, internalKey)
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get key: %w", err))
 		}
 
@@ -74,6 +84,8 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 			found = append(found, k)
 		}
 	}
+
+	s.Logger.InfoContext(ctx, "found keys", "keys", found)
 
 	return connect.NewResponse(&cachev1.ExistsResponse{
 		Keys:  found,
@@ -85,22 +97,26 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.GetRequest, cachev1.GetResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
 		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
 	for {
 		req, err := stream.Receive()
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
 			return err
 		}
 
 		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
 		value, ttl, err := s.Store.Get(ctx, internalKey)
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
 			err := stream.Send(&cachev1.GetResponse{
 				Key:   key,
 				Value: nil,
@@ -118,6 +134,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			Value: value,
 			Ttl:   ttl,
 		}); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
 			return err
 		}
 	}
@@ -127,17 +144,20 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.SetRequest, cachev1.SetResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
 		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
 	for {
 		req, err := stream.Receive()
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
 			return err
 		}
 
 		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
@@ -148,6 +168,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 		}
 
 		if err := s.Store.Set(ctx, internalKey, req.GetValue(), ttl); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to set key", "error", err.Error())
 			return err
 		}
 
@@ -156,6 +177,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			Value: req.GetValue(),
 			Ttl:   ttl,
 		}); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
 			return err
 		}
 	}
@@ -165,35 +187,41 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 func (s *server) Purge(ctx context.Context, stream *connect.BidiStream[cachev1.PurgeRequest, cachev1.PurgeResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
 		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
 	for {
 		req, err := stream.Receive()
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
 			return err
 		}
 
 		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetPrefix())
 		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
 		if err := s.Store.Purge(ctx, internalKey); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to purge keys", "error", err.Error())
 			return err
 		}
 
 		if err := stream.Send(&cachev1.PurgeResponse{
 			Purged: true,
 		}); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
 			return err
 		}
 	}
 }
 
 // NewServer returns a new server for the cache service.
-func NewServer(a auth.Authorizer, s storage.Store) cachev1connect.CacheServiceHandler {
+func NewServer(l *slog.Logger, a auth.Authorizer, s storage.Store) cachev1connect.CacheServiceHandler {
 	return &server{
+		Logger:     l,
 		Authorizer: a,
 		Store:      s,
 	}
