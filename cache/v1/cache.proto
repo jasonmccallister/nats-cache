@@ -9,6 +9,7 @@ message ExistsRequest {
 
 message ExistsResponse {
     repeated string keys = 1;
+    uint32 count = 2;
 }
 
 // GetRequest is the request message for the Get method. The database is optional and 
@@ -22,7 +23,8 @@ message GetRequest {
 
 // GetResponse is the response message for the Get method. 
 message GetResponse {
-    bytes value = 1;
+    string key = 1;
+    bytes value = 2;
 }
 
 // SetGetRequest is the request message for the Set method. The database is optional and 

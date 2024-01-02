@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"strings"
 
@@ -21,7 +22,7 @@ func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, error) {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			n.logger.InfoContext(ctx, "key not found", "key", key)
 
-			return nil, nil
+			return nil, fmt.Errorf("%w: %s", ErrKeyNotFound, key)
 		}
 
 		n.logger.ErrorContext(ctx, "failed to get key", "key", key, "error", err.Error())

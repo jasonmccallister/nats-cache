@@ -2,7 +2,13 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"time"
+)
+
+var (
+	// ErrKeyNotFound is returned when a key is not found in the store
+	ErrKeyNotFound = fmt.Errorf("key not found")
 )
 
 // Item is a struct that holds the value and ttl of a key.
