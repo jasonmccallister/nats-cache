@@ -3,7 +3,6 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"sync"
 )
 
@@ -39,8 +38,6 @@ func (s *inMemory) Get(ctx context.Context, key string) ([]byte, int64, error) {
 	if err := json.Unmarshal(s.db[key], &i); err != nil {
 		return nil, 0, err
 	}
-
-	fmt.Println(i)
 
 	// check if the item has expired
 	if i.IsExpired() {
