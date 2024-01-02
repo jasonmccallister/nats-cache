@@ -50,14 +50,14 @@ func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, int64, erro
 	return i.Value, i.TTL, nil
 }
 
-func (n *natsKeyValue) purgeKey(ctx context.Context, k ...string) error {
-	for _, key := range k {
-		if err := n.bucket.Purge(ctx, key); err != nil {
-			n.logger.ErrorContext(ctx, "failed to purge key", "key", key, "error", err.Error())
+func (n *natsKeyValue) purgeKey(ctx context.Context, keys ...string) error {
+	for _, k := range keys {
+		if err := n.bucket.Purge(ctx, k); err != nil {
+			n.logger.ErrorContext(ctx, "failed to purge key", "key", k, "error", err.Error())
 			continue
 		}
 
-		n.logger.InfoContext(ctx, "purged key", "key", key)
+		n.logger.InfoContext(ctx, "purged key", "key", k)
 	}
 
 	return nil
