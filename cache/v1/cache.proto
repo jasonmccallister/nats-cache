@@ -70,7 +70,9 @@ message PurgeResponse {
 }
 
 service CacheService {
+    // Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
     rpc Exists(ExistsRequest) returns (ExistsResponse) {}
+
     // Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
     rpc Get(stream GetRequest) returns (stream GetResponse) {}
     
