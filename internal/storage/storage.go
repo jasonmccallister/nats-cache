@@ -2,13 +2,7 @@ package storage
 
 import (
 	"context"
-	"fmt"
 	"time"
-)
-
-var (
-	// ErrKeyNotFound is returned when a key is not found in the store
-	ErrKeyNotFound = fmt.Errorf("key not found")
 )
 
 // Item is a struct that holds the value and ttl of a key.
@@ -30,7 +24,7 @@ func (i Item) IsExpired() bool {
 // Store is an interface that defines the methods needed to interact with a storage engine such as NATS KV
 type Store interface {
 	Delete(ctx context.Context, key string) error
-	Get(ctx context.Context, key string) ([]byte, error)
+	Get(ctx context.Context, key string) ([]byte, int64, error)
 	Purge(ctx context.Context, prefix string) error
 	Set(ctx context.Context, key string, value []byte, ttl int64) error
 }

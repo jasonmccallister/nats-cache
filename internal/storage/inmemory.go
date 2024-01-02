@@ -27,27 +27,27 @@ func (s *inMemory) Delete(ctx context.Context, key string) error {
 }
 
 // Get implements Store.
-func (s *inMemory) Get(ctx context.Context, key string) ([]byte, error) {
+func (s *inMemory) Get(ctx context.Context, key string) ([]byte, int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	if _, ok := s.db[key]; !ok {
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	var i Item
 	if err := json.Unmarshal(s.db[key], &i); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	fmt.Println(i)
 
 	// check if the item has expired
 	if i.IsExpired() {
-		return nil, nil
+		return nil, 0, nil
 	}
 
-	return i.Value, nil
+	return i.Value, i.TTL, nil
 }
 
 // Set implements Store.

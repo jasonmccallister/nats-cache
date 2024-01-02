@@ -65,7 +65,7 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		val, err := s.Store.Get(ctx, internalKey)
+		val, _, err := s.Store.Get(ctx, internalKey)
 		if err != nil {
 			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get key: %w", err))
 		}
@@ -99,11 +99,12 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
-		value, err := s.Store.Get(ctx, internalKey)
+		value, ttl, err := s.Store.Get(ctx, internalKey)
 		if err != nil {
 			err := stream.Send(&cachev1.GetResponse{
 				Key:   key,
 				Value: nil,
+				Ttl:   ttl,
 			})
 			if err != nil {
 				return err
@@ -115,6 +116,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 		if err := stream.Send(&cachev1.GetResponse{
 			Key:   key,
 			Value: value,
+			Ttl:   ttl,
 		}); err != nil {
 			return err
 		}
@@ -134,7 +136,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			return err
 		}
 
-		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
 		if err != nil {
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
@@ -150,8 +152,9 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 		}
 
 		if err := stream.Send(&cachev1.SetResponse{
+			Key:   key,
 			Value: req.GetValue(),
-			Ttl:   uint32(ttl),
+			Ttl:   ttl,
 		}); err != nil {
 			return err
 		}

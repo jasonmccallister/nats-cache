@@ -25,6 +25,9 @@ message GetRequest {
 message GetResponse {
     string key = 1;
     bytes value = 2;
+    // ttl is the time to live for the key. If the key is not found, the ttl will be 0. Otherwise,
+    // it will be expiration in unix time.
+    int64 ttl = 3;
 }
 
 // SetGetRequest is the request message for the Set method. The database is optional and 
@@ -39,8 +42,9 @@ message SetRequest {
 }
 
 message SetResponse {
-    bytes value = 1;
-    uint32 ttl = 2;
+    string key = 1;
+    bytes value = 2;
+    int64 ttl = 3;
 }
 
 // DeleteRequest is the request message for the Delete method. The database is optional and

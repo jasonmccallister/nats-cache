@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log/slog"
 	"strings"
 
@@ -16,25 +15,25 @@ type natsKeyValue struct {
 	logger *slog.Logger
 }
 
-func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, error) {
+func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, int64, error) {
 	v, err := n.bucket.Get(ctx, key)
 	if err != nil {
 		if errors.Is(err, jetstream.ErrKeyNotFound) {
 			n.logger.InfoContext(ctx, "key not found", "key", key)
 
-			return nil, fmt.Errorf("%w: %s", ErrKeyNotFound, key)
+			return nil, 0, nil
 		}
 
 		n.logger.ErrorContext(ctx, "failed to get key", "key", key, "error", err.Error())
 
-		return nil, err
+		return nil, 0, err
 	}
 
 	var i Item
 	if err := json.Unmarshal(v.Value(), &i); err != nil {
 		n.logger.ErrorContext(ctx, "failed to unmarshal item", "key", key, "error", err.Error())
 
-		return nil, err
+		return nil, 0, err
 	}
 
 	// check if the item has expired
@@ -43,12 +42,12 @@ func (n *natsKeyValue) Get(ctx context.Context, key string) ([]byte, error) {
 
 		defer n.purgeKey(ctx, key)
 
-		return nil, nil
+		return nil, 0, nil
 	}
 
 	n.logger.InfoContext(ctx, "got key", "key", key, "ttl", i.TTL)
 
-	return i.Value, nil
+	return i.Value, i.TTL, nil
 }
 
 func (n *natsKeyValue) purgeKey(ctx context.Context, k ...string) error {
