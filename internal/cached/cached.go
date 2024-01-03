@@ -114,6 +114,8 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 		}
 
+		start := time.Now()
+
 		value, ttl, err := s.Store.Get(ctx, internalKey)
 		if err != nil {
 			s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
@@ -128,6 +130,8 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 
 			continue
 		}
+
+		s.Logger.DebugContext(ctx, "get key", "key", key, "duration", time.Since(start).String())
 
 		if err := stream.Send(&cachev1.GetResponse{
 			Key:   key,
@@ -149,6 +153,8 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 	}
 
 	for {
+		start := time.Now()
+
 		req, err := stream.Receive()
 		if err != nil {
 			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
@@ -171,6 +177,8 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			s.Logger.ErrorContext(ctx, "failed to set key", "error", err.Error())
 			return err
 		}
+
+		s.Logger.DebugContext(ctx, "set key", "key", key, "duration", time.Since(start).String())
 
 		if err := stream.Send(&cachev1.SetResponse{
 			Key:   key,

@@ -37,6 +37,7 @@ func main() {
 	natsHttpPort := flag.Int("nats-http-port", 0, "The NATS http port to use for the embedded server")
 	natsPort := flag.Int("nats-port", 0, "The NATS port to use for the embedded server")
 	kvBucket := flag.String("nats-kv-bucket-name", "cache", "The NATS KV bucket name to use for the embedded server")
+	streamSourceName := flag.String("nats-stream-source-name", "cache", "The NATS stream source name to use for the embedded server (will be prefixed with KV_")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -113,7 +114,7 @@ func main() {
 			k, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
 				Bucket: *kvBucket,
 				Mirror: &jetstream.StreamSource{
-					Name: "KV_cache",
+					Name: fmt.Sprintf("KV_%s", *streamSourceName),
 					External: &jetstream.ExternalStream{
 						APIPrefix: "$JS.ngs.API",
 					},
