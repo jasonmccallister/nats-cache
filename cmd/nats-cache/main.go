@@ -39,6 +39,7 @@ func main() {
 	kvBucket := flag.String("nats-kv-bucket-name", "cache", "The NATS KV bucket name to use for the embedded server")
 	streamSourceName := flag.String("nats-stream-source-name", "cache", "The NATS stream source name to use for the embedded server (will be prefixed with KV_")
 	natsLocalStorage := flag.String("nats-local-storage", "file", "The NATS local storage to use for the embedded server")
+	natsBucketMaxBytes := flag.Int64("nats-bucket-max-bytes", 1024*1024*1024, "The NATS bucket max bytes to use for the embedded server")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -118,6 +119,7 @@ func main() {
 	bucketOpts = append(bucketOpts, localbucket.WithBucketName(*kvBucket))
 	bucketOpts = append(bucketOpts, localbucket.WithStreamSourceName(*streamSourceName))
 	bucketOpts = append(bucketOpts, localbucket.WithStorage(storageType))
+	bucketOpts = append(bucketOpts, localbucket.WithMaxBytes(*natsBucketMaxBytes))
 
 	kv, err := localbucket.Create(ctx, js, bucketOpts...)
 	if err != nil {
