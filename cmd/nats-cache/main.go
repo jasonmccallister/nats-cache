@@ -6,10 +6,12 @@ import (
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/otelconnect"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
+	"github.com/jasonmccallister/nats-cache/internal/embeddednats"
 	"github.com/jasonmccallister/nats-cache/internal/gen/cache/v1/cachev1connect"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
 	"github.com/nats-io/nats.go"
@@ -19,16 +21,22 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
 	addr := flag.Uint("addr", 50051, "address of the server")
 	publicKey := flag.String("public-key", os.Getenv("NC_PUBLIC_KEY"), "The public key to use for authorizing requests")
+
 	logLevel := flag.String("log-level", "info", "The log level to use")
 	logFormat := flag.String("log-format", "text", "The log format to use")
 	logOutput := flag.String("log-output", "stdout", "The log output to use")
+
 	natsNKEY := flag.String("nats-nkey", os.Getenv("NATS_NKEY"), "The NATS nkey to use for NGS")
 	natsJWT := flag.String("nats-jwt", os.Getenv("NATS_JWT"), "The NATS jwt to use for NGS")
+	natsHttpPort := flag.Int("nats-http-port", 0, "The NATS http port to use for the embedded server")
+	natsPort := flag.Int("nats-port", 0, "The NATS port to use for the embedded server")
+	kvBucket := flag.String("nats-kv-bucket-name", "cache", "The NATS KV bucket name to use for the embedded server")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -73,42 +81,61 @@ func main() {
 		os.Exit(1)
 	}
 
-	// if the nats nkey is not set, exit
-	if *natsNKEY == "" {
-		logger.ErrorContext(ctx, "nats-nkey is required")
+	// create the nats server and start it
+	ns, err := embeddednats.NewServer(*natsNKEY, *natsJWT, *natsPort, *natsHttpPort)
+	if err != nil {
+		logger.ErrorContext(ctx, fmt.Errorf("failed to create nats server: %w", err).Error())
 		os.Exit(1)
 	}
 
-	// if the nats jwt is not set, exit
-	if *natsJWT == "" {
-		logger.ErrorContext(ctx, "nats-jwt is required")
+	go ns.Start()
+
+	if !ns.ReadyForConnections(10 * time.Second) {
+		logger.ErrorContext(ctx, "nats server failed to start")
 		os.Exit(1)
 	}
 
-	if err := run(ctx, logger, *addr, *publicKey, *natsJWT, *natsNKEY); err != nil {
+	nc, err := nats.Connect(ns.ClientURL(), nats.Name(os.Getenv("HOSTNAME")))
+	if err != nil {
+		logger.ErrorContext(ctx, fmt.Errorf("failed to connect to nats: %w", err).Error())
+		os.Exit(1)
+	}
+
+	js, err := jetstream.New(nc)
+	if err != nil {
+		logger.ErrorContext(ctx, fmt.Errorf("failed to create jetstream: %w", err).Error())
+		os.Exit(1)
+	}
+
+	kv, err := js.KeyValue(ctx, *kvBucket)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrBucketNotFound) {
+			k, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
+				Bucket: *kvBucket,
+				Mirror: &jetstream.StreamSource{
+					Name: "KV_cache",
+					External: &jetstream.ExternalStream{
+						APIPrefix: "$JS.ngs.API",
+					},
+				},
+				MaxBytes: 1024 * 1024 * 1024,
+			})
+			if err != nil {
+				logger.ErrorContext(ctx, fmt.Errorf("failed to create jetstream kv: %w", err).Error())
+				os.Exit(1)
+			}
+
+			kv = k
+		}
+	}
+
+	if err := run(ctx, logger, *addr, *publicKey, kv); err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to run server: %w", err).Error())
 		os.Exit(2)
 	}
 }
 
-func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey, jwt, nkey string) error {
-	nc, err := nats.Connect("tls://connect.ngs.global", nats.UserJWTAndSeed(jwt, nkey), nats.Name(os.Getenv("HOSTNAME")))
-	if err != nil {
-		return fmt.Errorf("failed to connect to nats server: %w", err)
-	}
-	defer nc.Close()
-
-	js, err := jetstream.New(nc)
-	if err != nil {
-		return fmt.Errorf("failed to create jetstream kv: %w", err)
-	}
-
-	// TODO(jasonmccallister) make this configurable
-	kv, err := js.KeyValue(ctx, "cache")
-	if err != nil {
-		return fmt.Errorf("failed to create jetstream kv: %w", err)
-	}
-
+func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string, kv jetstream.KeyValue) error {
 	store := storage.NewNATSKeyValue(kv, logger)
 	authorizer := auth.NewPasetoPublicKey(publicKey)
 
