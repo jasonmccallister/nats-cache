@@ -131,7 +131,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 			continue
 		}
 
-		s.Logger.DebugContext(ctx, "get key", "key", key, "duration", time.Since(start).String())
+		s.Logger.DebugContext(ctx, "get key", "key", internalKey, "duration", time.Since(start).String())
 
 		if err := stream.Send(&cachev1.GetResponse{
 			Key:   key,
@@ -178,7 +178,7 @@ func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.Set
 			return err
 		}
 
-		s.Logger.DebugContext(ctx, "set key", "key", key, "duration", time.Since(start).String())
+		s.Logger.DebugContext(ctx, "set key", "key", internalKey, "duration", time.Since(start).String())
 
 		if err := stream.Send(&cachev1.SetResponse{
 			Key:   key,

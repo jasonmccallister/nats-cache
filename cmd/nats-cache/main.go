@@ -28,8 +28,8 @@ func main() {
 	addr := flag.Uint("addr", 50051, "address of the server")
 	publicKey := flag.String("public-key", os.Getenv("NC_PUBLIC_KEY"), "The public key to use for authorizing requests")
 
-	logLevel := flag.String("log-level", "info", "The log level to use")
-	logFormat := flag.String("log-format", "text", "The log format to use")
+	logLevel := flag.String("log-level", "error", "The log level to use")
+	logFormat := flag.String("log-format", "json", "The log format to use")
 	logOutput := flag.String("log-output", "stdout", "The log output to use")
 
 	natsNKEY := flag.String("nats-nkey", os.Getenv("NATS_NKEY"), "The NATS nkey to use for NGS")
@@ -38,6 +38,7 @@ func main() {
 	natsPort := flag.Int("nats-port", 0, "The NATS port to use for the embedded server")
 	kvBucket := flag.String("nats-kv-bucket-name", "cache", "The NATS KV bucket name to use for the embedded server")
 	streamSourceName := flag.String("nats-stream-source-name", "cache", "The NATS stream source name to use for the embedded server (will be prefixed with KV_")
+	natsLocalStorage := flag.String("nats-local-storage", "file", "The NATS local storage to use for the embedded server")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -108,7 +109,17 @@ func main() {
 		os.Exit(1)
 	}
 
-	kv, err := localbucket.Create(ctx, js, *kvBucket, fmt.Sprintf("KV_%s", *streamSourceName))
+	storageType := jetstream.FileStorage
+	if *natsLocalStorage == "memory" {
+		storageType = jetstream.MemoryStorage
+	}
+
+	var bucketOpts []localbucket.OptionsFunc
+	bucketOpts = append(bucketOpts, localbucket.WithBucketName(*kvBucket))
+	bucketOpts = append(bucketOpts, localbucket.WithStreamSourceName(*streamSourceName))
+	bucketOpts = append(bucketOpts, localbucket.WithStorage(storageType))
+
+	kv, err := localbucket.Create(ctx, js, bucketOpts...)
 	if err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to create local bucket: %w", err).Error())
 		os.Exit(1)
