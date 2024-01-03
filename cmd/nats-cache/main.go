@@ -6,13 +6,13 @@ import (
 	"connectrpc.com/grpcreflect"
 	"connectrpc.com/otelconnect"
 	"context"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
 	"github.com/jasonmccallister/nats-cache/internal/embeddednats"
 	"github.com/jasonmccallister/nats-cache/internal/gen/cache/v1/cachev1connect"
+	"github.com/jasonmccallister/nats-cache/internal/localbucket"
 	"github.com/jasonmccallister/nats-cache/internal/storage"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -108,26 +108,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	kv, err := js.KeyValue(ctx, *kvBucket)
+	kv, err := localbucket.Create(ctx, js, *kvBucket, fmt.Sprintf("KV_%s", *streamSourceName))
 	if err != nil {
-		if errors.Is(err, jetstream.ErrBucketNotFound) {
-			k, err := js.CreateKeyValue(ctx, jetstream.KeyValueConfig{
-				Bucket: *kvBucket,
-				Mirror: &jetstream.StreamSource{
-					Name: fmt.Sprintf("KV_%s", *streamSourceName),
-					External: &jetstream.ExternalStream{
-						APIPrefix: "$JS.ngs.API",
-					},
-				},
-				MaxBytes: 1024 * 1024 * 1024,
-			})
-			if err != nil {
-				logger.ErrorContext(ctx, fmt.Errorf("failed to create jetstream kv: %w", err).Error())
-				os.Exit(1)
-			}
-
-			kv = k
-		}
+		logger.ErrorContext(ctx, fmt.Errorf("failed to create local bucket: %w", err).Error())
+		os.Exit(1)
 	}
 
 	if err := run(ctx, logger, *addr, *publicKey, kv); err != nil {
