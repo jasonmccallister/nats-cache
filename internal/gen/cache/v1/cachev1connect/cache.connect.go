@@ -57,6 +57,7 @@ var (
 
 // CacheServiceClient is a client for the cache.v1.CacheService service.
 type CacheServiceClient interface {
+	// Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
 	Get(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
@@ -147,6 +148,7 @@ func (c *cacheServiceClient) Purge(ctx context.Context) *connect.BidiStreamForCl
 
 // CacheServiceHandler is an implementation of the cache.v1.CacheService service.
 type CacheServiceHandler interface {
+	// Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
 	Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
