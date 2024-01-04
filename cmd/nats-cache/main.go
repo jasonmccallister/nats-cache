@@ -8,6 +8,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/jasonmccallister/nats-cache/getenv"
 	"github.com/jasonmccallister/nats-cache/internal/auth"
 	"github.com/jasonmccallister/nats-cache/internal/cached"
 	"github.com/jasonmccallister/nats-cache/internal/embeddednats"
@@ -25,21 +26,20 @@ import (
 )
 
 func main() {
-	addr := flag.Uint("addr", 50051, "address of the server")
-	publicKey := flag.String("public-key", os.Getenv("NC_PUBLIC_KEY"), "The public key to use for authorizing requests")
+	port := flag.Int("port", getenv.Int("APP_PORT", 50051), "address of the server")
+	publicKey := flag.String("public-key", getenv.String("AUTH_PUBLIC_KEY", ""), "The public key to use for authorizing requests")
+	logLevel := flag.String("log-level", getenv.String("LOG_LEVEL", "error"), "The log level to use")
+	logFormat := flag.String("log-format", getenv.String("LOG_FORMAT", "json"), "The log format to use")
+	logOutput := flag.String("log-output", getenv.String("LOG_OUTPUT", "stdout"), "The log output to use")
+	natsNKEY := flag.String("nats-nkey", getenv.String("NATS_NKEY", ""), "The NATS nkey to use for NGS")
+	natsJWT := flag.String("nats-jwt", getenv.String("NATS_JWT", ""), "The NATS jwt to use for NGS")
+	natsHttpPort := flag.Int("nats-http-port", getenv.Int("NATS_HTTP_PORT", 0), "The NATS http port to use for the embedded server")
+	natsPort := flag.Int("nats-port", getenv.Int("NATS_PORT", 0), "The NATS port to use for the embedded server")
+	kvBucket := flag.String("nats-kv-bucket-name", getenv.String("NATS_KV_BUCKET_NAME", "cache"), "The NATS KV bucket name to use for the embedded server")
+	streamSourceName := flag.String("nats-stream-source-name", getenv.String("NATS_STREAM_SOURCE_NAME", "cache"), "The NATS stream source name to use for the embedded server (will be prefixed with KV_")
+	natsLocalStorage := flag.String("nats-local-storage", getenv.String("NATS_LOCAL_STORAGE", ""), "The NATS local storage to use for the embedded server")
+	natsBucketMaxBytes := flag.Int64("nats-bucket-max-bytes", getenv.Int64("NATS_BUCKET_MAX_BYTES", 1024*1024*1024), "The NATS bucket max bytes to use for the embedded server")
 
-	logLevel := flag.String("log-level", "error", "The log level to use")
-	logFormat := flag.String("log-format", "json", "The log format to use")
-	logOutput := flag.String("log-output", "stdout", "The log output to use")
-
-	natsNKEY := flag.String("nats-nkey", os.Getenv("NATS_NKEY"), "The NATS nkey to use for NGS")
-	natsJWT := flag.String("nats-jwt", os.Getenv("NATS_JWT"), "The NATS jwt to use for NGS")
-	natsHttpPort := flag.Int("nats-http-port", 0, "The NATS http port to use for the embedded server")
-	natsPort := flag.Int("nats-port", 0, "The NATS port to use for the embedded server")
-	kvBucket := flag.String("nats-kv-bucket-name", "cache", "The NATS KV bucket name to use for the embedded server")
-	streamSourceName := flag.String("nats-stream-source-name", "cache", "The NATS stream source name to use for the embedded server (will be prefixed with KV_")
-	natsLocalStorage := flag.String("nats-local-storage", "file", "The NATS local storage to use for the embedded server")
-	natsBucketMaxBytes := flag.Int64("nats-bucket-max-bytes", 1024*1024*1024, "The NATS bucket max bytes to use for the embedded server")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -129,13 +129,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := run(ctx, logger, *addr, *publicKey, kv); err != nil {
+	if err := run(ctx, logger, *port, *publicKey, kv); err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to run server: %w", err).Error())
 		os.Exit(2)
 	}
 }
 
-func run(ctx context.Context, logger *slog.Logger, addr uint, publicKey string, kv jetstream.KeyValue) error {
+func run(ctx context.Context, logger *slog.Logger, addr int, publicKey string, kv jetstream.KeyValue) error {
 	store := storage.NewNATSKeyValue(kv, logger)
 	authorizer := auth.NewPasetoPublicKey(publicKey)
 
