@@ -34,7 +34,7 @@ func Generate(nkey, jwt, file string) (string, error) {
 
 	// file is optional, if not provided generate a random file name
 	if file == "" {
-		f, err := os.CreateTemp("/", "nats-creds-")
+		f, err := os.CreateTemp("", "nats-creds-")
 		if err != nil {
 			return "", fmt.Errorf("failed to create temp file: %w", err)
 		}
