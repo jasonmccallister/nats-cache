@@ -7,11 +7,11 @@ import (
 	"net/url"
 )
 
-// NewServer creates a new embedded NATS server
-func NewServer(nkey, jwt string, port, httpPort int) (*server.Server, error) {
+// NewServer creates a new embedded NATS server and will return the server and the credentials file.
+func NewServer(nkey, jwt string, port, httpPort int) (*server.Server, string, error) {
 	creds, err := credentials.Generate(nkey, jwt, "")
 	if err != nil {
-		return nil, fmt.Errorf("unable to generate credentials: %w", err)
+		return nil, "", fmt.Errorf("unable to generate credentials: %w", err)
 	}
 
 	opts := &server.Options{
@@ -39,5 +39,10 @@ func NewServer(nkey, jwt string, port, httpPort int) (*server.Server, error) {
 		opts.HTTPPort = httpPort
 	}
 
-	return server.NewServer(opts)
+	s, err := server.NewServer(opts)
+	if err != nil {
+		return nil, "", fmt.Errorf("unable to create server: %w", err)
+	}
+
+	return s, creds, nil
 }

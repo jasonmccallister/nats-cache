@@ -85,11 +85,13 @@ func main() {
 	}
 
 	// create the nats server and start it
-	ns, err := embeddednats.NewServer(*natsNKEY, *natsJWT, *natsPort, *natsHttpPort)
+	ns, creds, err := embeddednats.NewServer(*natsNKEY, *natsJWT, *natsPort, *natsHttpPort)
 	if err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to create nats server: %w", err).Error())
 		os.Exit(1)
 	}
+	// remove the creds file when we exit
+	defer os.Remove(creds)
 
 	go ns.Start()
 
