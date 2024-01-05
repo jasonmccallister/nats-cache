@@ -7,7 +7,6 @@ import (
 	"github.com/nats-io/nats.go"
 	"net/url"
 	"os"
-	"strings"
 )
 
 // RemoteLeafFromEnv will create a remote leaf from the environment variables.
@@ -17,40 +16,7 @@ func RemoteLeafFromEnv() (*server.RemoteLeafOpts, string, error) {
 		return nil, "", fmt.Errorf("failed to parse url: %w", err)
 	}
 
-	if v, ok := os.LookupEnv("NATS_URL"); ok {
-		u, err = url.Parse(v)
-		if err != nil {
-			return nil, "", fmt.Errorf("failed to parse url: %w", err)
-		}
-	}
-
-	// is the auth set?
-	if v, ok := os.LookupEnv("NATS_AUTH"); ok {
-		u.User = url.UserPassword("", v)
-
-		// strip the //: from the url
-		if strings.Contains(u.String(), "//:") {
-			u, err = url.Parse(strings.Replace(u.String(), "//:", "//", 1))
-			if err != nil {
-				return nil, "", fmt.Errorf("failed to parse url: %w", err)
-			}
-		}
-
-		return &server.RemoteLeafOpts{
-			URLs: []*url.URL{u},
-		}, "", nil
-	}
-
-	// is the user and pass set?
-	if v, ok := os.LookupEnv("NATS_USER"); ok {
-		if p, ok := os.LookupEnv("NATS_PASS"); ok {
-			u.User = url.UserPassword(v, p)
-
-			return &server.RemoteLeafOpts{
-				URLs: []*url.URL{u},
-			}, "", nil
-		}
-	}
+	// we need the jwt and seed to be set
 
 	// if nats seed is set, and jwt is set, use it
 	var creds string
@@ -60,7 +26,11 @@ func RemoteLeafFromEnv() (*server.RemoteLeafOpts, string, error) {
 			if err != nil {
 				return nil, "", fmt.Errorf("failed to generate credentials: %w", err)
 			}
+		} else {
+			return nil, "", fmt.Errorf("NATS_JWT is not set")
 		}
+	} else {
+		return nil, "", fmt.Errorf("NATS_SEED is not set")
 	}
 
 	return &server.RemoteLeafOpts{
@@ -69,7 +39,7 @@ func RemoteLeafFromEnv() (*server.RemoteLeafOpts, string, error) {
 	}, creds, nil
 }
 
-// FromEnv will create a nats connection from the environment variables. Environment variables are
+// FromEnv will create a nats connection from the environment variables. Currently not used.
 func FromEnv() (*nats.Conn, error) {
 	u, err := url.Parse("connect.ngs.global")
 	if err != nil {

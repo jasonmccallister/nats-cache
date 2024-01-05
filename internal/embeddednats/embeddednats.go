@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/jasonmccallister/nats-cache/natsremote"
 	"github.com/nats-io/nats-server/v2/server"
-	"log"
 )
 
 // NewServer creates a new embedded NATS server and will return the server and the credentials file.
@@ -13,8 +12,6 @@ func NewServer(port, httpPort int) (*server.Server, string, error) {
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to create remote leaf: %w", err)
 	}
-
-	log.Println(remote.URLs[0].String())
 
 	opts := &server.Options{
 		JetStream: true,

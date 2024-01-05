@@ -1,11 +1,5 @@
 version: "3.7"
 services:
-  nats-server:
-    image: nats:latest
-    ports:
-      - "4223:4222"
-      - "8223:8222"
-    command: "-js -m 8222 -p 4222 -V --auth tokenhere"
   server:
     image: nats-cache:local
     env_file: .env
@@ -14,8 +8,6 @@ services:
       dockerfile: Dockerfile
     environment:
       - AUTH_PUBLIC_KEY=f0e061f5981a2b0bb3d6a5b7e1e7c557d4c8ec6fdc9eef98c37b6b2983a0b912
-      - NATS_URL=nats://nats-server:4222
-      - NATS_AUTH=tokenhere
       - LOG_LEVEL=debug
       - NATS_HTTP_PORT=8222
       - NATS_PORT=4222
