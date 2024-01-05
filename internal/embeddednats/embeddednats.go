@@ -2,32 +2,24 @@ package embeddednats
 
 import (
 	"fmt"
-	"github.com/jasonmccallister/nats-cache/credentials"
+	"github.com/jasonmccallister/nats-cache/natsremote"
 	"github.com/nats-io/nats-server/v2/server"
-	"net/url"
+	"log"
 )
 
 // NewServer creates a new embedded NATS server and will return the server and the credentials file.
-func NewServer(nkey, jwt string, port, httpPort int) (*server.Server, string, error) {
-	creds, err := credentials.Generate(nkey, jwt, "")
+func NewServer(port, httpPort int) (*server.Server, string, error) {
+	remote, creds, err := natsremote.RemoteLeafFromEnv()
 	if err != nil {
-		return nil, "", fmt.Errorf("unable to generate credentials: %w", err)
+		return nil, "", fmt.Errorf("failed to create remote leaf: %w", err)
 	}
+
+	log.Println(remote.URLs[0].String())
 
 	opts := &server.Options{
 		JetStream: true,
 		LeafNode: server.LeafNodeOpts{
-			Remotes: []*server.RemoteLeafOpts{
-				{
-					URLs: []*url.URL{
-						{
-							Scheme: "tls",
-							Host:   "connect.ngs.global",
-						},
-					},
-					Credentials: creds,
-				},
-			},
+			Remotes: []*server.RemoteLeafOpts{remote},
 		},
 	}
 

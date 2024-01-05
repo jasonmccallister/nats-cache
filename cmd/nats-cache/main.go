@@ -31,8 +31,6 @@ func main() {
 	logLevel := flag.String("log-level", getenv.String("LOG_LEVEL", "error"), "The log level to use")
 	logFormat := flag.String("log-format", getenv.String("LOG_FORMAT", "json"), "The log format to use")
 	logOutput := flag.String("log-output", getenv.String("LOG_OUTPUT", "stdout"), "The log output to use")
-	natsNKEY := flag.String("nats-nkey", getenv.String("NATS_NKEY", ""), "The NATS nkey to use for NGS")
-	natsJWT := flag.String("nats-jwt", getenv.String("NATS_JWT", ""), "The NATS jwt to use for NGS")
 	natsHttpPort := flag.Int("nats-http-port", getenv.Int("NATS_HTTP_PORT", 0), "The NATS http port to use for the embedded server")
 	natsPort := flag.Int("nats-port", getenv.Int("NATS_PORT", 0), "The NATS port to use for the embedded server")
 	kvBucket := flag.String("nats-kv-bucket-name", getenv.String("NATS_KV_BUCKET_NAME", "cache"), "The NATS KV bucket name to use for the embedded server")
@@ -85,13 +83,15 @@ func main() {
 	}
 
 	// create the nats server and start it
-	ns, creds, err := embeddednats.NewServer(*natsNKEY, *natsJWT, *natsPort, *natsHttpPort)
+	ns, creds, err := embeddednats.NewServer(*natsPort, *natsHttpPort)
 	if err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to create nats server: %w", err).Error())
 		os.Exit(1)
 	}
-	// remove the creds file when we exit
-	defer os.Remove(creds)
+	// remove the creds file when we exit if it exists
+	if creds != "" {
+		defer os.Remove(creds)
+	}
 
 	go ns.Start()
 
