@@ -90,8 +90,12 @@ func main() {
 	}
 	// remove the creds file when we exit if it exists
 	if creds != "" {
+		logger.InfoContext(ctx, "store creds file", "path", creds)
 		defer os.Remove(creds)
 	}
+
+	logger.DebugContext(ctx, "starting nats server", "port", *natsPort, "http-port", *natsHttpPort)
+	logger.DebugContext(ctx, "nats server leaf nodes", "leaf-nodes", ns.NumLeafNodes())
 
 	go ns.Start()
 

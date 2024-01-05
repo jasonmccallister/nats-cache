@@ -11,7 +11,7 @@ import (
 
 // RemoteLeafFromEnv will create a remote leaf from the environment variables.
 func RemoteLeafFromEnv() (*server.RemoteLeafOpts, string, error) {
-	u, err := url.Parse("connect.ngs.global")
+	u, err := url.Parse("tls://connect.ngs.global")
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse url: %w", err)
 	}
