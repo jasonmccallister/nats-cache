@@ -33,10 +33,6 @@ func main() {
 	logOutput := flag.String("log-output", getenv.String("LOG_OUTPUT", "stdout"), "The log output to use")
 	natsHttpPort := flag.Int("nats-http-port", getenv.Int("NATS_HTTP_PORT", 0), "The NATS http port to use for the embedded server")
 	natsPort := flag.Int("nats-port", getenv.Int("NATS_PORT", 0), "The NATS port to use for the embedded server")
-	kvBucket := flag.String("nats-kv-bucket-name", getenv.String("NATS_KV_BUCKET_NAME", "cache"), "The NATS KV bucket name to use for the embedded server")
-	streamSourceName := flag.String("nats-stream-source-name", getenv.String("NATS_STREAM_SOURCE_NAME", "cache"), "The NATS stream source name to use for the embedded server (will be prefixed with KV_")
-	natsLocalStorage := flag.String("nats-local-storage", getenv.String("NATS_LOCAL_STORAGE", ""), "The NATS local storage to use for the embedded server")
-	natsBucketMaxBytes := flag.Int64("nats-bucket-max-bytes", getenv.Int64("NATS_BUCKET_MAX_BYTES", 1024*1024*1024), "The NATS bucket max bytes to use for the embedded server")
 
 	flag.Parse()
 
@@ -116,18 +112,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	storageType := jetstream.FileStorage
-	if *natsLocalStorage == "memory" {
-		storageType = jetstream.MemoryStorage
-	}
-
-	var bucketOpts []localbucket.OptionsFunc
-	bucketOpts = append(bucketOpts, localbucket.WithBucketName(*kvBucket))
-	bucketOpts = append(bucketOpts, localbucket.WithStreamSourceName(*streamSourceName))
-	bucketOpts = append(bucketOpts, localbucket.WithStorage(storageType))
-	bucketOpts = append(bucketOpts, localbucket.WithMaxBytes(*natsBucketMaxBytes))
-
-	kv, err := localbucket.Create(ctx, js, bucketOpts...)
+	kv, err := localbucket.CreateFromEnv(ctx, js)
 	if err != nil {
 		logger.ErrorContext(ctx, fmt.Errorf("failed to create local bucket: %w", err).Error())
 		os.Exit(1)

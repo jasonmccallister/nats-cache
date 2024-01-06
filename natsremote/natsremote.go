@@ -9,14 +9,17 @@ import (
 	"os"
 )
 
+const (
+	// SynadiaCloudURL is the url for the synadia cloud.
+	SynadiaCloudURL = "tls://connect.ngs.global"
+)
+
 // RemoteLeafFromEnv will create a remote leaf from the environment variables.
 func RemoteLeafFromEnv() (*server.RemoteLeafOpts, string, error) {
-	u, err := url.Parse("tls://connect.ngs.global")
+	u, err := url.Parse(SynadiaCloudURL)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to parse url: %w", err)
 	}
-
-	// we need the jwt and seed to be set
 
 	// if nats seed is set, and jwt is set, use it
 	var creds string
