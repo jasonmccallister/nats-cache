@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	// SynadiaCloudURL is the url for the synadia cloud.
+	// SynadiaCloudURL is the url for the Synadia cloud.
 	SynadiaCloudURL = "tls://connect.ngs.global"
 )
 

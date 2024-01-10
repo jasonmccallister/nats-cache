@@ -9,16 +9,11 @@ import (
 )
 
 // NewServer creates a new embedded NATS server and will return the server and the credentials file.
-func NewServer(port, httpPort int) (*server.Server, string, error) {
-	remote, creds, err := natsremote.RemoteLeafFromEnv()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to create remote leaf: %w", err)
-	}
-
+func NewServer(port, httpPort int, remotes []*server.RemoteLeafOpts, creds string) (*server.Server, string, error) {
 	opts := &server.Options{
 		JetStream: true,
 		LeafNode: server.LeafNodeOpts{
-			Remotes: []*server.RemoteLeafOpts{remote},
+			Remotes: remotes,
 		},
 	}
 
@@ -38,11 +33,17 @@ func NewServer(port, httpPort int) (*server.Server, string, error) {
 	return s, creds, nil
 }
 
+// NewServerFromEnvironment will create a new embedded NATS server from the environment variables.
 func NewServerFromEnvironment() (*server.Server, string, error) {
 	portV, _ := os.LookupEnv("NATS_PORT")
 	port, _ := strconv.Atoi(portV)
 	httpPortV, _ := os.LookupEnv("NATS_HTTP_PORT")
 	httpPort, _ := strconv.Atoi(httpPortV)
 
-	return NewServer(port, httpPort)
+	remote, creds, err := natsremote.RemoteLeafFromEnv()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to create remote leaf: %w", err)
+	}
+
+	return NewServer(port, httpPort, []*server.RemoteLeafOpts{remote}, creds)
 }

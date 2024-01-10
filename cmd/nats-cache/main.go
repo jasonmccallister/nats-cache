@@ -112,7 +112,12 @@ func run(ctx context.Context, logger *slog.Logger, authorizer auth.Authorizer, k
 
 	port := 50051
 	if v, ok := os.LookupEnv("APP_PORT"); ok {
-		port, _ = strconv.Atoi(v)
+		p, err := strconv.Atoi(v)
+		if err != nil {
+			return fmt.Errorf("failed to parse port: %w", err)
+		}
+
+		port = p
 	}
 
 	logger.InfoContext(ctx, "starting server", "port", port)
