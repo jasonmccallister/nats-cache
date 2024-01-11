@@ -3,7 +3,9 @@ package localbucket
 import (
 	"context"
 	"errors"
+	"github.com/jasonmccallister/nats-cache/getenv"
 	"github.com/nats-io/nats.go/jetstream"
+	"os"
 )
 
 // OptionsFunc is a function that sets options for the bucket
@@ -51,6 +53,39 @@ type Option struct {
 	StreamSourceName string
 	Storage          jetstream.StorageType
 	MaxBytes         int64
+}
+
+// CreateFromEnv sets the default options for the bucket and checks the environment for overrides.
+func CreateFromEnv(ctx context.Context, js jetstream.JetStream) (jetstream.KeyValue, error) {
+	opts := defaultOptions()
+
+	if v, ok := os.LookupEnv("NATS_BUCKET_NAME"); ok {
+		opts.BucketName = v
+	}
+
+	if _, ok := os.LookupEnv("NATS_BUCKET_MAX_BYTES"); ok {
+		opts.MaxBytes = getenv.Int64("NATS_BUCKET_MAX_BYTES", 1024*1024*1024)
+	}
+
+	if v, ok := os.LookupEnv("NATS_STREAM_SOURCE_NAME"); ok {
+		opts.StreamSourceName = v
+	}
+
+	if v, ok := os.LookupEnv("NATS_LOCAL_STORAGE"); ok {
+		switch v {
+		case "memory":
+			opts.Storage = jetstream.MemoryStorage
+		default:
+			opts.Storage = jetstream.FileStorage
+		}
+	}
+
+	kv, err := Create(ctx, js)
+	if err != nil {
+		return nil, err
+	}
+
+	return kv, nil
 }
 
 // Create creates a new bucket if it does not exist or returns the existing bucket

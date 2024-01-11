@@ -2,8 +2,16 @@ version: "3.7"
 services:
   server:
     image: nats-cache:local
+    env_file: .env
     build:
       context: .
       dockerfile: Dockerfile
-  ports:
-    - "50051:50051"
+    environment:
+      - AUTH_PUBLIC_KEY=f0e061f5981a2b0bb3d6a5b7e1e7c557d4c8ec6fdc9eef98c37b6b2983a0b912
+      - LOG_LEVEL=debug
+      - NATS_HTTP_PORT=8222
+      - NATS_PORT=4222
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+      - "50051:50051"

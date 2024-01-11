@@ -22,44 +22,32 @@ type server struct {
 	cachev1connect.UnimplementedCacheServiceHandler
 }
 
-// Delete implements cachev1connect.CacheServiceHandler.
-func (s *server) Delete(ctx context.Context, stream *connect.BidiStream[cachev1.DeleteRequest, cachev1.DeleteResponse]) error {
-	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
+func (s *server) Delete(ctx context.Context, req *connect.Request[cachev1.DeleteRequest]) (*connect.Response[cachev1.DeleteResponse], error) {
+	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
-	for {
-		req, err := stream.Receive()
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
-			return err
-		}
+	start := time.Now()
 
-		start := time.Now()
-
-		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
-		}
-
-		// maybe consider removing the db from the delete request and rely on a generic key?
-		if err := s.Store.Delete(ctx, internalKey); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to delete key", "error", err.Error())
-			return err
-		}
-
-		s.Logger.DebugContext(ctx, "delete", "key", internalKey, "duration", time.Since(start).String())
-
-		if err := stream.Send(&cachev1.DeleteResponse{
-			Deleted: true,
-		}); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
-			return err
-		}
+	internalKey, _, err := keygen.FromToken(*t, req.Msg.GetDatabase(), req.Msg.GetKey())
+	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 	}
+
+	// maybe consider removing the db from the delete request and rely on a generic key?
+	if err := s.Store.Delete(ctx, internalKey); err != nil {
+		s.Logger.ErrorContext(ctx, "failed to delete key", "error", err.Error())
+		return nil, err
+	}
+
+	s.Logger.DebugContext(ctx, "delete", "key", internalKey, "duration", time.Since(start).String())
+
+	return connect.NewResponse(&cachev1.DeleteResponse{
+		Deleted: true,
+	}), nil
 }
 
 // Exists checks if any of the provided keys exists. It will return the keys (by name) that do exist.
@@ -99,137 +87,94 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 	}), nil
 }
 
-// Get implements cachev1connect.CacheServiceHandler.
-func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.GetRequest, cachev1.GetResponse]) error {
-	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
+func (s *server) Get(ctx context.Context, req *connect.Request[cachev1.GetRequest]) (*connect.Response[cachev1.GetResponse], error) {
+	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
-	for {
-		req, err := stream.Receive()
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
-			return err
-		}
-
-		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
-		}
-
-		start := time.Now()
-
-		value, ttl, err := s.Store.Get(ctx, internalKey)
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
-			err := stream.Send(&cachev1.GetResponse{
-				Key:   key,
-				Value: nil,
-				Ttl:   ttl,
-			})
-			if err != nil {
-				return err
-			}
-
-			continue
-		}
-
-		s.Logger.DebugContext(ctx, "get", "key", internalKey, "duration", time.Since(start).String())
-
-		if err := stream.Send(&cachev1.GetResponse{
-			Key:   key,
-			Value: value,
-			Ttl:   ttl,
-		}); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
-			return err
-		}
+	internalKey, key, err := keygen.FromToken(*t, req.Msg.GetDatabase(), req.Msg.GetKey())
+	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 	}
+
+	start := time.Now()
+
+	value, ttl, err := s.Store.Get(ctx, internalKey)
+	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get key: %w", err))
+	}
+
+	s.Logger.DebugContext(ctx, "get", "key", internalKey, "duration", time.Since(start).String())
+
+	return connect.NewResponse(&cachev1.GetResponse{
+		Key:   key,
+		Value: value,
+		Ttl:   ttl,
+	}), nil
 }
 
 // Set implements cachev1connect.CacheServiceHandler.
-func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.SetRequest, cachev1.SetResponse]) error {
-	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
+func (s *server) Set(ctx context.Context, req *connect.Request[cachev1.SetRequest]) (*connect.Response[cachev1.SetResponse], error) {
+	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
-	for {
-		start := time.Now()
+	start := time.Now()
 
-		req, err := stream.Receive()
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
-			return err
-		}
-
-		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
-		}
-
-		// did the user provide a value for the ttl?
-		var ttl int64
-		if req.GetTtl() > 0 {
-			ttl = time.Now().Add(time.Duration(req.GetTtl()) * time.Second).Unix()
-		}
-
-		if err := s.Store.Set(ctx, internalKey, req.GetValue(), ttl); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to set key", "error", err.Error())
-			return err
-		}
-
-		s.Logger.DebugContext(ctx, "set", "key", internalKey, "duration", time.Since(start).String())
-
-		if err := stream.Send(&cachev1.SetResponse{
-			Key:   key,
-			Value: req.GetValue(),
-			Ttl:   ttl,
-		}); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
-			return err
-		}
+	internalKey, key, err := keygen.FromToken(*t, req.Msg.GetDatabase(), req.Msg.GetKey())
+	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 	}
+
+	// did the user provide a value for the ttl?
+	var ttl int64
+	if req.Msg.GetTtl() > 0 {
+		ttl = time.Now().Add(time.Duration(req.Msg.GetTtl()) * time.Second).Unix()
+	}
+
+	if err := s.Store.Set(ctx, internalKey, req.Msg.GetValue(), ttl); err != nil {
+		s.Logger.ErrorContext(ctx, "failed to set key", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to set key: %w", err))
+	}
+
+	s.Logger.DebugContext(ctx, "set", "key", internalKey, "duration", time.Since(start).String())
+
+	return connect.NewResponse(&cachev1.SetResponse{
+		Key:   key,
+		Value: req.Msg.GetValue(),
+		Ttl:   ttl,
+	}), nil
 }
 
 // Purge implements cachev1connect.CacheServiceHandler.
-func (s *server) Purge(ctx context.Context, stream *connect.BidiStream[cachev1.PurgeRequest, cachev1.PurgeResponse]) error {
-	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
+func (s *server) Purge(ctx context.Context, req *connect.Request[cachev1.PurgeRequest]) (*connect.Response[cachev1.PurgeResponse], error) {
+	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
-		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
-	for {
-		req, err := stream.Receive()
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
-			return err
-		}
-
-		internalKey, _, err := keygen.FromToken(*t, req.GetDatabase(), req.GetPrefix())
-		if err != nil {
-			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
-		}
-
-		if err := s.Store.Purge(ctx, internalKey); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to purge keys", "error", err.Error())
-			return err
-		}
-
-		if err := stream.Send(&cachev1.PurgeResponse{
-			Purged: true,
-		}); err != nil {
-			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
-			return err
-		}
+	internalKey, _, err := keygen.FromToken(*t, req.Msg.GetDatabase(), req.Msg.GetPrefix())
+	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
 	}
+
+	if err := s.Store.Purge(ctx, internalKey); err != nil {
+		s.Logger.ErrorContext(ctx, "failed to purge keys", "error", err.Error())
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to purge keys: %w", err))
+	}
+
+	return connect.NewResponse(&cachev1.PurgeResponse{
+		Purged: true,
+	}), nil
 }
 
 // NewServer returns a new server for the cache service.
