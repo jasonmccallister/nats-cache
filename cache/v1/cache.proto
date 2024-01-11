@@ -74,14 +74,14 @@ service CacheService {
     rpc Exists(ExistsRequest) returns (ExistsResponse) {}
 
     // Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
-    rpc Get(stream GetRequest) returns (stream GetResponse) {}
+    rpc Get(GetRequest) returns (GetResponse) {}
     
     // Set is responsible for setting a value in the cache.
-    rpc Set(stream SetRequest) returns (stream SetResponse) {}
+    rpc Set(SetRequest) returns (SetResponse) {}
 
     // Delete is responsible for deleting a value from the cache.
-    rpc Delete(stream DeleteRequest) returns (stream DeleteResponse) {}
+    rpc Delete(DeleteRequest) returns (DeleteResponse) {}
 
     // Purge is responsible for purging all values from the cache.
-    rpc Purge(stream PurgeRequest) returns (stream PurgeResponse) {}
+    rpc Purge(PurgeRequest) returns (PurgeResponse) {}
 }
