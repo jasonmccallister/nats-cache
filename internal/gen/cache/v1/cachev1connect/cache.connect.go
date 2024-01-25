@@ -33,40 +33,35 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
+	// CacheServiceDeleteProcedure is the fully-qualified name of the CacheService's Delete RPC.
+	CacheServiceDeleteProcedure = "/cache.v1.CacheService/Delete"
 	// CacheServiceExistsProcedure is the fully-qualified name of the CacheService's Exists RPC.
 	CacheServiceExistsProcedure = "/cache.v1.CacheService/Exists"
 	// CacheServiceGetProcedure is the fully-qualified name of the CacheService's Get RPC.
 	CacheServiceGetProcedure = "/cache.v1.CacheService/Get"
-	// CacheServiceSetProcedure is the fully-qualified name of the CacheService's Set RPC.
-	CacheServiceSetProcedure = "/cache.v1.CacheService/Set"
-	// CacheServiceDeleteProcedure is the fully-qualified name of the CacheService's Delete RPC.
-	CacheServiceDeleteProcedure = "/cache.v1.CacheService/Delete"
 	// CacheServicePurgeProcedure is the fully-qualified name of the CacheService's Purge RPC.
 	CacheServicePurgeProcedure = "/cache.v1.CacheService/Purge"
+	// CacheServiceSetProcedure is the fully-qualified name of the CacheService's Set RPC.
+	CacheServiceSetProcedure = "/cache.v1.CacheService/Set"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
 	cacheServiceServiceDescriptor      = v1.File_cache_v1_cache_proto.Services().ByName("CacheService")
+	cacheServiceDeleteMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("Delete")
 	cacheServiceExistsMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("Exists")
 	cacheServiceGetMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Get")
-	cacheServiceSetMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Set")
-	cacheServiceDeleteMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("Delete")
 	cacheServicePurgeMethodDescriptor  = cacheServiceServiceDescriptor.Methods().ByName("Purge")
+	cacheServiceSetMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Set")
 )
 
 // CacheServiceClient is a client for the cache.v1.CacheService service.
 type CacheServiceClient interface {
-	// Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
-	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
-	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
-	Get(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
-	// Set is responsible for setting a value in the cache.
-	Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error)
-	// Delete is responsible for deleting a value from the cache.
 	Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error)
-	// Purge is responsible for purging all values from the cache.
+	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
+	Get(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
 	Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error)
+	Set(context.Context) *connect.BidiStreamForClient[v1.SetRequest, v1.SetResponse]
 }
 
 // NewCacheServiceClient constructs a client for the cache.v1.CacheService service. By default, it
@@ -79,6 +74,12 @@ type CacheServiceClient interface {
 func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) CacheServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
 	return &cacheServiceClient{
+		delete: connect.NewClient[v1.DeleteRequest, v1.DeleteResponse](
+			httpClient,
+			baseURL+CacheServiceDeleteProcedure,
+			connect.WithSchema(cacheServiceDeleteMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		exists: connect.NewClient[v1.ExistsRequest, v1.ExistsResponse](
 			httpClient,
 			baseURL+CacheServiceExistsProcedure,
@@ -91,22 +92,16 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(cacheServiceGetMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
-		set: connect.NewClient[v1.SetRequest, v1.SetResponse](
-			httpClient,
-			baseURL+CacheServiceSetProcedure,
-			connect.WithSchema(cacheServiceSetMethodDescriptor),
-			connect.WithClientOptions(opts...),
-		),
-		delete: connect.NewClient[v1.DeleteRequest, v1.DeleteResponse](
-			httpClient,
-			baseURL+CacheServiceDeleteProcedure,
-			connect.WithSchema(cacheServiceDeleteMethodDescriptor),
-			connect.WithClientOptions(opts...),
-		),
 		purge: connect.NewClient[v1.PurgeRequest, v1.PurgeResponse](
 			httpClient,
 			baseURL+CacheServicePurgeProcedure,
 			connect.WithSchema(cacheServicePurgeMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
+		set: connect.NewClient[v1.SetRequest, v1.SetResponse](
+			httpClient,
+			baseURL+CacheServiceSetProcedure,
+			connect.WithSchema(cacheServiceSetMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -114,11 +109,16 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 
 // cacheServiceClient implements CacheServiceClient.
 type cacheServiceClient struct {
+	delete *connect.Client[v1.DeleteRequest, v1.DeleteResponse]
 	exists *connect.Client[v1.ExistsRequest, v1.ExistsResponse]
 	get    *connect.Client[v1.GetRequest, v1.GetResponse]
-	set    *connect.Client[v1.SetRequest, v1.SetResponse]
-	delete *connect.Client[v1.DeleteRequest, v1.DeleteResponse]
 	purge  *connect.Client[v1.PurgeRequest, v1.PurgeResponse]
+	set    *connect.Client[v1.SetRequest, v1.SetResponse]
+}
+
+// Delete calls cache.v1.CacheService.Delete.
+func (c *cacheServiceClient) Delete(ctx context.Context, req *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error) {
+	return c.delete.CallUnary(ctx, req)
 }
 
 // Exists calls cache.v1.CacheService.Exists.
@@ -131,33 +131,23 @@ func (c *cacheServiceClient) Get(ctx context.Context) *connect.BidiStreamForClie
 	return c.get.CallBidiStream(ctx)
 }
 
-// Set calls cache.v1.CacheService.Set.
-func (c *cacheServiceClient) Set(ctx context.Context, req *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error) {
-	return c.set.CallUnary(ctx, req)
-}
-
-// Delete calls cache.v1.CacheService.Delete.
-func (c *cacheServiceClient) Delete(ctx context.Context, req *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error) {
-	return c.delete.CallUnary(ctx, req)
-}
-
 // Purge calls cache.v1.CacheService.Purge.
 func (c *cacheServiceClient) Purge(ctx context.Context, req *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error) {
 	return c.purge.CallUnary(ctx, req)
 }
 
+// Set calls cache.v1.CacheService.Set.
+func (c *cacheServiceClient) Set(ctx context.Context) *connect.BidiStreamForClient[v1.SetRequest, v1.SetResponse] {
+	return c.set.CallBidiStream(ctx)
+}
+
 // CacheServiceHandler is an implementation of the cache.v1.CacheService service.
 type CacheServiceHandler interface {
-	// Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
-	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
-	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
-	Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
-	// Set is responsible for setting a value in the cache.
-	Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error)
-	// Delete is responsible for deleting a value from the cache.
 	Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error)
-	// Purge is responsible for purging all values from the cache.
+	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
+	Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
 	Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error)
+	Set(context.Context, *connect.BidiStream[v1.SetRequest, v1.SetResponse]) error
 }
 
 // NewCacheServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -166,6 +156,12 @@ type CacheServiceHandler interface {
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
 func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	cacheServiceDeleteHandler := connect.NewUnaryHandler(
+		CacheServiceDeleteProcedure,
+		svc.Delete,
+		connect.WithSchema(cacheServiceDeleteMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	cacheServiceExistsHandler := connect.NewUnaryHandler(
 		CacheServiceExistsProcedure,
 		svc.Exists,
@@ -178,36 +174,30 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(cacheServiceGetMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
-	cacheServiceSetHandler := connect.NewUnaryHandler(
-		CacheServiceSetProcedure,
-		svc.Set,
-		connect.WithSchema(cacheServiceSetMethodDescriptor),
-		connect.WithHandlerOptions(opts...),
-	)
-	cacheServiceDeleteHandler := connect.NewUnaryHandler(
-		CacheServiceDeleteProcedure,
-		svc.Delete,
-		connect.WithSchema(cacheServiceDeleteMethodDescriptor),
-		connect.WithHandlerOptions(opts...),
-	)
 	cacheServicePurgeHandler := connect.NewUnaryHandler(
 		CacheServicePurgeProcedure,
 		svc.Purge,
 		connect.WithSchema(cacheServicePurgeMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	cacheServiceSetHandler := connect.NewBidiStreamHandler(
+		CacheServiceSetProcedure,
+		svc.Set,
+		connect.WithSchema(cacheServiceSetMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/cache.v1.CacheService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
+		case CacheServiceDeleteProcedure:
+			cacheServiceDeleteHandler.ServeHTTP(w, r)
 		case CacheServiceExistsProcedure:
 			cacheServiceExistsHandler.ServeHTTP(w, r)
 		case CacheServiceGetProcedure:
 			cacheServiceGetHandler.ServeHTTP(w, r)
-		case CacheServiceSetProcedure:
-			cacheServiceSetHandler.ServeHTTP(w, r)
-		case CacheServiceDeleteProcedure:
-			cacheServiceDeleteHandler.ServeHTTP(w, r)
 		case CacheServicePurgeProcedure:
 			cacheServicePurgeHandler.ServeHTTP(w, r)
+		case CacheServiceSetProcedure:
+			cacheServiceSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -217,6 +207,10 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 // UnimplementedCacheServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedCacheServiceHandler struct{}
 
+func (UnimplementedCacheServiceHandler) Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Delete is not implemented"))
+}
+
 func (UnimplementedCacheServiceHandler) Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Exists is not implemented"))
 }
@@ -225,14 +219,10 @@ func (UnimplementedCacheServiceHandler) Get(context.Context, *connect.BidiStream
 	return connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Get is not implemented"))
 }
 
-func (UnimplementedCacheServiceHandler) Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Set is not implemented"))
-}
-
-func (UnimplementedCacheServiceHandler) Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Delete is not implemented"))
-}
-
 func (UnimplementedCacheServiceHandler) Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Purge is not implemented"))
+}
+
+func (UnimplementedCacheServiceHandler) Set(context.Context, *connect.BidiStream[v1.SetRequest, v1.SetResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Set is not implemented"))
 }

@@ -148,39 +148,50 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 }
 
 // Set implements cachev1connect.CacheServiceHandler.
-func (s *server) Set(ctx context.Context, req *connect.Request[cachev1.SetRequest]) (*connect.Response[cachev1.SetResponse], error) {
-	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
+func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.SetRequest, cachev1.SetResponse]) error {
+	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
-	start := time.Now()
+	for {
+		req, err := stream.Receive()
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
+			return err
+		}
 
-	internalKey, key, err := keygen.FromToken(*t, req.Msg.GetDatabase(), req.Msg.GetKey())
-	if err != nil {
-		s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+		start := time.Now()
+
+		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+		}
+
+		// did the user provide a value for the ttl?
+		var ttl int64
+		if req.GetTtl() > 0 {
+			ttl = time.Now().Add(time.Duration(req.GetTtl()) * time.Second).Unix()
+		}
+
+		if err := s.Store.Set(ctx, internalKey, req.GetValue(), ttl); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to set key", "error", err.Error())
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to set key: %w", err))
+		}
+
+		s.Logger.DebugContext(ctx, "set", "key", internalKey, "duration", time.Since(start).String())
+
+		if err := stream.Send(&cachev1.SetResponse{
+			Key:   key,
+			Value: req.GetValue(),
+			Ttl:   ttl,
+		}); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
+			return err
+		}
 	}
-
-	// did the user provide a value for the ttl?
-	var ttl int64
-	if req.Msg.GetTtl() > 0 {
-		ttl = time.Now().Add(time.Duration(req.Msg.GetTtl()) * time.Second).Unix()
-	}
-
-	if err := s.Store.Set(ctx, internalKey, req.Msg.GetValue(), ttl); err != nil {
-		s.Logger.ErrorContext(ctx, "failed to set key", "error", err.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to set key: %w", err))
-	}
-
-	s.Logger.DebugContext(ctx, "set", "key", internalKey, "duration", time.Since(start).String())
-
-	return connect.NewResponse(&cachev1.SetResponse{
-		Key:   key,
-		Value: req.Msg.GetValue(),
-		Ttl:   ttl,
-	}), nil
 }
 
 // Purge implements cachev1connect.CacheServiceHandler.
@@ -206,5 +217,3 @@ func (s *server) Purge(ctx context.Context, req *connect.Request[cachev1.PurgeRe
 		Purged: true,
 	}), nil
 }
-
-// Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
