@@ -22,6 +22,15 @@ type server struct {
 	cachev1connect.UnimplementedCacheServiceHandler
 }
 
+// NewServer returns a new server for the cache service.
+func NewServer(l *slog.Logger, a auth.Authorizer, s storage.Store) cachev1connect.CacheServiceHandler {
+	return &server{
+		Logger:     l,
+		Authorizer: a,
+		Store:      s,
+	}
+}
+
 func (s *server) Delete(ctx context.Context, req *connect.Request[cachev1.DeleteRequest]) (*connect.Response[cachev1.DeleteResponse], error) {
 	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {
@@ -87,34 +96,55 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 	}), nil
 }
 
-func (s *server) Get(ctx context.Context, req *connect.Request[cachev1.GetRequest]) (*connect.Response[cachev1.GetResponse], error) {
-	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
+func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.GetRequest, cachev1.GetResponse]) error {
+	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+		return connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
 	}
 
-	internalKey, key, err := keygen.FromToken(*t, req.Msg.GetDatabase(), req.Msg.GetKey())
-	if err != nil {
-		s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+	for {
+		req, err := stream.Receive()
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to receive request", "error", err.Error())
+			return err
+		}
+
+		internalKey, key, err := keygen.FromToken(*t, req.GetDatabase(), req.GetKey())
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+			return connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+		}
+
+		start := time.Now()
+		value, ttl, err := s.Store.Get(ctx, internalKey)
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
+			err := stream.Send(&cachev1.GetResponse{
+				Key:   key,
+				Value: nil,
+				Ttl:   ttl,
+			})
+			if err != nil {
+				return err
+			}
+
+			continue
+		}
+
+		s.Logger.DebugContext(ctx, "get", "key", internalKey, "duration", time.Since(start).String())
+
+		if err := stream.Send(&cachev1.GetResponse{
+			Key:   key,
+			Value: value,
+			Ttl:   ttl,
+		}); err != nil {
+			s.Logger.ErrorContext(ctx, "failed to send response", "error", err.Error())
+			return err
+		}
+
+		s.Logger.DebugContext(ctx, "get", "key", internalKey, "duration", time.Since(start).String())
 	}
-
-	start := time.Now()
-
-	value, ttl, err := s.Store.Get(ctx, internalKey)
-	if err != nil {
-		s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
-		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to get key: %w", err))
-	}
-
-	s.Logger.DebugContext(ctx, "get", "key", internalKey, "duration", time.Since(start).String())
-
-	return connect.NewResponse(&cachev1.GetResponse{
-		Key:   key,
-		Value: value,
-		Ttl:   ttl,
-	}), nil
 }
 
 // Set implements cachev1connect.CacheServiceHandler.
@@ -177,11 +207,4 @@ func (s *server) Purge(ctx context.Context, req *connect.Request[cachev1.PurgeRe
 	}), nil
 }
 
-// NewServer returns a new server for the cache service.
-func NewServer(l *slog.Logger, a auth.Authorizer, s storage.Store) cachev1connect.CacheServiceHandler {
-	return &server{
-		Logger:     l,
-		Authorizer: a,
-		Store:      s,
-	}
-}
+// Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error

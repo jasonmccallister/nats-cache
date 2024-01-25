@@ -74,7 +74,7 @@ service CacheService {
     rpc Exists(ExistsRequest) returns (ExistsResponse) {}
 
     // Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
-    rpc Get(GetRequest) returns (GetResponse) {}
+    rpc Get(stream GetRequest) returns (stream GetResponse) {}
     
     // Set is responsible for setting a value in the cache.
     rpc Set(SetRequest) returns (SetResponse) {}

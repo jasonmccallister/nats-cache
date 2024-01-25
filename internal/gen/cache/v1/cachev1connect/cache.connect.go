@@ -60,7 +60,7 @@ type CacheServiceClient interface {
 	// Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
-	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+	Get(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
 	// Set is responsible for setting a value in the cache.
 	Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error)
 	// Delete is responsible for deleting a value from the cache.
@@ -127,8 +127,8 @@ func (c *cacheServiceClient) Exists(ctx context.Context, req *connect.Request[v1
 }
 
 // Get calls cache.v1.CacheService.Get.
-func (c *cacheServiceClient) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
-	return c.get.CallUnary(ctx, req)
+func (c *cacheServiceClient) Get(ctx context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse] {
+	return c.get.CallBidiStream(ctx)
 }
 
 // Set calls cache.v1.CacheService.Set.
@@ -151,7 +151,7 @@ type CacheServiceHandler interface {
 	// Exists is responsible for checking if a key exists in the cache. If the key exists, it will be returned.
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	// Get is responsible for retrieving a value from the cache. If the value is not found, the value will return as nil.
-	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+	Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
 	// Set is responsible for setting a value in the cache.
 	Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error)
 	// Delete is responsible for deleting a value from the cache.
@@ -172,7 +172,7 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(cacheServiceExistsMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
-	cacheServiceGetHandler := connect.NewUnaryHandler(
+	cacheServiceGetHandler := connect.NewBidiStreamHandler(
 		CacheServiceGetProcedure,
 		svc.Get,
 		connect.WithSchema(cacheServiceGetMethodDescriptor),
@@ -221,8 +221,8 @@ func (UnimplementedCacheServiceHandler) Exists(context.Context, *connect.Request
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Exists is not implemented"))
 }
 
-func (UnimplementedCacheServiceHandler) Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Get is not implemented"))
+func (UnimplementedCacheServiceHandler) Get(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Get is not implemented"))
 }
 
 func (UnimplementedCacheServiceHandler) Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error) {
