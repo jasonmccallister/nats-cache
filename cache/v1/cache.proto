@@ -72,7 +72,7 @@ message PurgeResponse {
 service CacheService {
     rpc Delete(DeleteRequest) returns (DeleteResponse) {}
     rpc Exists(ExistsRequest) returns (ExistsResponse) {}
-    rpc Get(stream GetRequest) returns (stream GetResponse) {}
+    rpc GetStream(stream GetRequest) returns (stream GetResponse) {}
     rpc Purge(PurgeRequest) returns (PurgeResponse) {}
-    rpc Set(stream SetRequest) returns (stream SetResponse) {}
+    rpc SetStream(stream SetRequest) returns (stream SetResponse) {}
 }

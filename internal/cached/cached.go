@@ -96,7 +96,7 @@ func (s *server) Exists(ctx context.Context, req *connect.Request[cachev1.Exists
 	}), nil
 }
 
-func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.GetRequest, cachev1.GetResponse]) error {
+func (s *server) GetStream(ctx context.Context, stream *connect.BidiStream[cachev1.GetRequest, cachev1.GetResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
@@ -148,7 +148,7 @@ func (s *server) Get(ctx context.Context, stream *connect.BidiStream[cachev1.Get
 }
 
 // Set implements cachev1connect.CacheServiceHandler.
-func (s *server) Set(ctx context.Context, stream *connect.BidiStream[cachev1.SetRequest, cachev1.SetResponse]) error {
+func (s *server) SetStream(ctx context.Context, stream *connect.BidiStream[cachev1.SetRequest, cachev1.SetResponse]) error {
 	t, err := s.Authorizer.Authorize(stream.RequestHeader().Get("Authorization"))
 	if err != nil {
 		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())

@@ -6,6 +6,8 @@ build:
 run: build
 	@export NATS_PORT=4222 && export NATS_HTTP_PORT=8222 && export LOG_LEVEL=debug && export LOG_FORMAT=text && export AUTH_PUBLIC_KEY=$(PUB_KEY)
 	./bin/nats-cache
+docker-build:
+	docker compose up --build
 
 generate:
 	buf generate
