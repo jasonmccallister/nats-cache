@@ -37,12 +37,16 @@ const (
 	CacheServiceDeleteProcedure = "/cache.v1.CacheService/Delete"
 	// CacheServiceExistsProcedure is the fully-qualified name of the CacheService's Exists RPC.
 	CacheServiceExistsProcedure = "/cache.v1.CacheService/Exists"
+	// CacheServiceGetProcedure is the fully-qualified name of the CacheService's Get RPC.
+	CacheServiceGetProcedure = "/cache.v1.CacheService/Get"
 	// CacheServiceGetStreamProcedure is the fully-qualified name of the CacheService's GetStream RPC.
 	CacheServiceGetStreamProcedure = "/cache.v1.CacheService/GetStream"
 	// CacheServicePurgeProcedure is the fully-qualified name of the CacheService's Purge RPC.
 	CacheServicePurgeProcedure = "/cache.v1.CacheService/Purge"
 	// CacheServiceSetStreamProcedure is the fully-qualified name of the CacheService's SetStream RPC.
 	CacheServiceSetStreamProcedure = "/cache.v1.CacheService/SetStream"
+	// CacheServiceSetProcedure is the fully-qualified name of the CacheService's Set RPC.
+	CacheServiceSetProcedure = "/cache.v1.CacheService/Set"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
@@ -50,18 +54,22 @@ var (
 	cacheServiceServiceDescriptor         = v1.File_cache_v1_cache_proto.Services().ByName("CacheService")
 	cacheServiceDeleteMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Delete")
 	cacheServiceExistsMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Exists")
+	cacheServiceGetMethodDescriptor       = cacheServiceServiceDescriptor.Methods().ByName("Get")
 	cacheServiceGetStreamMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("GetStream")
 	cacheServicePurgeMethodDescriptor     = cacheServiceServiceDescriptor.Methods().ByName("Purge")
 	cacheServiceSetStreamMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("SetStream")
+	cacheServiceSetMethodDescriptor       = cacheServiceServiceDescriptor.Methods().ByName("Set")
 )
 
 // CacheServiceClient is a client for the cache.v1.CacheService service.
 type CacheServiceClient interface {
 	Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error)
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
+	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
 	GetStream(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
 	Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error)
 	SetStream(context.Context) *connect.BidiStreamForClient[v1.SetRequest, v1.SetResponse]
+	Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error)
 }
 
 // NewCacheServiceClient constructs a client for the cache.v1.CacheService service. By default, it
@@ -86,6 +94,12 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(cacheServiceExistsMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		get: connect.NewClient[v1.GetRequest, v1.GetResponse](
+			httpClient,
+			baseURL+CacheServiceGetProcedure,
+			connect.WithSchema(cacheServiceGetMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		getStream: connect.NewClient[v1.GetRequest, v1.GetResponse](
 			httpClient,
 			baseURL+CacheServiceGetStreamProcedure,
@@ -104,6 +118,12 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(cacheServiceSetStreamMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		set: connect.NewClient[v1.SetRequest, v1.SetResponse](
+			httpClient,
+			baseURL+CacheServiceSetProcedure,
+			connect.WithSchema(cacheServiceSetMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -111,9 +131,11 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type cacheServiceClient struct {
 	delete    *connect.Client[v1.DeleteRequest, v1.DeleteResponse]
 	exists    *connect.Client[v1.ExistsRequest, v1.ExistsResponse]
+	get       *connect.Client[v1.GetRequest, v1.GetResponse]
 	getStream *connect.Client[v1.GetRequest, v1.GetResponse]
 	purge     *connect.Client[v1.PurgeRequest, v1.PurgeResponse]
 	setStream *connect.Client[v1.SetRequest, v1.SetResponse]
+	set       *connect.Client[v1.SetRequest, v1.SetResponse]
 }
 
 // Delete calls cache.v1.CacheService.Delete.
@@ -124,6 +146,11 @@ func (c *cacheServiceClient) Delete(ctx context.Context, req *connect.Request[v1
 // Exists calls cache.v1.CacheService.Exists.
 func (c *cacheServiceClient) Exists(ctx context.Context, req *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error) {
 	return c.exists.CallUnary(ctx, req)
+}
+
+// Get calls cache.v1.CacheService.Get.
+func (c *cacheServiceClient) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
+	return c.get.CallUnary(ctx, req)
 }
 
 // GetStream calls cache.v1.CacheService.GetStream.
@@ -141,13 +168,20 @@ func (c *cacheServiceClient) SetStream(ctx context.Context) *connect.BidiStreamF
 	return c.setStream.CallBidiStream(ctx)
 }
 
+// Set calls cache.v1.CacheService.Set.
+func (c *cacheServiceClient) Set(ctx context.Context, req *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error) {
+	return c.set.CallUnary(ctx, req)
+}
+
 // CacheServiceHandler is an implementation of the cache.v1.CacheService service.
 type CacheServiceHandler interface {
 	Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error)
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
+	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
 	GetStream(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
 	Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error)
 	SetStream(context.Context, *connect.BidiStream[v1.SetRequest, v1.SetResponse]) error
+	Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error)
 }
 
 // NewCacheServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -168,6 +202,12 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(cacheServiceExistsMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	cacheServiceGetHandler := connect.NewUnaryHandler(
+		CacheServiceGetProcedure,
+		svc.Get,
+		connect.WithSchema(cacheServiceGetMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	cacheServiceGetStreamHandler := connect.NewBidiStreamHandler(
 		CacheServiceGetStreamProcedure,
 		svc.GetStream,
@@ -186,18 +226,28 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(cacheServiceSetStreamMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	cacheServiceSetHandler := connect.NewUnaryHandler(
+		CacheServiceSetProcedure,
+		svc.Set,
+		connect.WithSchema(cacheServiceSetMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/cache.v1.CacheService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case CacheServiceDeleteProcedure:
 			cacheServiceDeleteHandler.ServeHTTP(w, r)
 		case CacheServiceExistsProcedure:
 			cacheServiceExistsHandler.ServeHTTP(w, r)
+		case CacheServiceGetProcedure:
+			cacheServiceGetHandler.ServeHTTP(w, r)
 		case CacheServiceGetStreamProcedure:
 			cacheServiceGetStreamHandler.ServeHTTP(w, r)
 		case CacheServicePurgeProcedure:
 			cacheServicePurgeHandler.ServeHTTP(w, r)
 		case CacheServiceSetStreamProcedure:
 			cacheServiceSetStreamHandler.ServeHTTP(w, r)
+		case CacheServiceSetProcedure:
+			cacheServiceSetHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -215,6 +265,10 @@ func (UnimplementedCacheServiceHandler) Exists(context.Context, *connect.Request
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Exists is not implemented"))
 }
 
+func (UnimplementedCacheServiceHandler) Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Get is not implemented"))
+}
+
 func (UnimplementedCacheServiceHandler) GetStream(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.GetStream is not implemented"))
 }
@@ -225,4 +279,8 @@ func (UnimplementedCacheServiceHandler) Purge(context.Context, *connect.Request[
 
 func (UnimplementedCacheServiceHandler) SetStream(context.Context, *connect.BidiStream[v1.SetRequest, v1.SetResponse]) error {
 	return connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.SetStream is not implemented"))
+}
+
+func (UnimplementedCacheServiceHandler) Set(context.Context, *connect.Request[v1.SetRequest]) (*connect.Response[v1.SetResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Set is not implemented"))
 }
