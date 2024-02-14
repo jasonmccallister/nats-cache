@@ -1,6 +1,6 @@
 module github.com/jasonmccallister/nats-cache
 
-go 1.21.5
+go 1.22
 
 require (
 	aidanwoods.dev/go-paseto v1.5.1
