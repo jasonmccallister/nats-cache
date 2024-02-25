@@ -69,10 +69,26 @@ message PurgeResponse {
     bool purged = 1;
 }
 
+message GetMultiRequest {
+    optional uint32 database = 1;
+    repeated string keys = 2;
+}
+
+message Item {
+    string key = 1;
+    bytes value = 2;
+    int64 ttl = 3;
+}
+
+message GetMultiResponse {
+    repeated Item items = 1;
+}
+
 service CacheService {
     rpc Delete(DeleteRequest) returns (DeleteResponse) {}
     rpc Exists(ExistsRequest) returns (ExistsResponse) {}
     rpc Get(GetRequest) returns (GetResponse) {}
+    rpc GetMulti(GetMultiRequest) returns (GetMultiResponse) {}
     rpc GetStream(stream GetRequest) returns (stream GetResponse) {}
     rpc Purge(PurgeRequest) returns (PurgeResponse) {}
     rpc SetStream(stream SetRequest) returns (stream SetResponse) {}

@@ -51,6 +51,43 @@ func (s *server) Get(ctx context.Context, req *connect.Request[cachev1.GetReques
 	}), nil
 }
 
+func (s *server) GetMulti(ctx context.Context, req *connect.Request[cachev1.GetMultiRequest]) (*connect.Response[cachev1.GetMultiResponse], error) {
+	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
+	if err != nil {
+		s.Logger.ErrorContext(ctx, "failed to authorize request", "error", err.Error())
+		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("failed to authorize request: %w", err))
+	}
+
+	items := make([]*cachev1.Item, len(req.Msg.GetKeys()))
+
+	start := time.Now()
+	for i, k := range req.Msg.GetKeys() {
+		internalKey, _, err := keygen.FromToken(*t, req.Msg.GetDatabase(), k)
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to create internal key", "error", err.Error())
+			return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("failed to create key: %w", err))
+		}
+
+		value, ttl, err := s.Store.Get(ctx, internalKey)
+		if err != nil {
+			s.Logger.ErrorContext(ctx, "failed to get key", "error", err.Error())
+			return nil, err
+		}
+
+		items[i] = &cachev1.Item{
+			Key:   k,
+			Value: value,
+			Ttl:   ttl,
+		}
+
+		s.Logger.DebugContext(ctx, "get", "key", internalKey, "duration", time.Since(start).String())
+	}
+
+	s.Logger.DebugContext(ctx, "get multiple", "duration", time.Since(start).String())
+
+	return connect.NewResponse(&cachev1.GetMultiResponse{Items: items}), nil
+}
+
 func (s *server) Set(ctx context.Context, req *connect.Request[cachev1.SetRequest]) (*connect.Response[cachev1.SetResponse], error) {
 	t, err := s.Authorizer.Authorize(req.Header().Get("Authorization"))
 	if err != nil {

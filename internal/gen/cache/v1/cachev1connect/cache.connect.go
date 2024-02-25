@@ -39,6 +39,8 @@ const (
 	CacheServiceExistsProcedure = "/cache.v1.CacheService/Exists"
 	// CacheServiceGetProcedure is the fully-qualified name of the CacheService's Get RPC.
 	CacheServiceGetProcedure = "/cache.v1.CacheService/Get"
+	// CacheServiceGetMultiProcedure is the fully-qualified name of the CacheService's GetMulti RPC.
+	CacheServiceGetMultiProcedure = "/cache.v1.CacheService/GetMulti"
 	// CacheServiceGetStreamProcedure is the fully-qualified name of the CacheService's GetStream RPC.
 	CacheServiceGetStreamProcedure = "/cache.v1.CacheService/GetStream"
 	// CacheServicePurgeProcedure is the fully-qualified name of the CacheService's Purge RPC.
@@ -55,6 +57,7 @@ var (
 	cacheServiceDeleteMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Delete")
 	cacheServiceExistsMethodDescriptor    = cacheServiceServiceDescriptor.Methods().ByName("Exists")
 	cacheServiceGetMethodDescriptor       = cacheServiceServiceDescriptor.Methods().ByName("Get")
+	cacheServiceGetMultiMethodDescriptor  = cacheServiceServiceDescriptor.Methods().ByName("GetMulti")
 	cacheServiceGetStreamMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("GetStream")
 	cacheServicePurgeMethodDescriptor     = cacheServiceServiceDescriptor.Methods().ByName("Purge")
 	cacheServiceSetStreamMethodDescriptor = cacheServiceServiceDescriptor.Methods().ByName("SetStream")
@@ -66,6 +69,7 @@ type CacheServiceClient interface {
 	Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error)
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+	GetMulti(context.Context, *connect.Request[v1.GetMultiRequest]) (*connect.Response[v1.GetMultiResponse], error)
 	GetStream(context.Context) *connect.BidiStreamForClient[v1.GetRequest, v1.GetResponse]
 	Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error)
 	SetStream(context.Context) *connect.BidiStreamForClient[v1.SetRequest, v1.SetResponse]
@@ -100,6 +104,12 @@ func NewCacheServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(cacheServiceGetMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		getMulti: connect.NewClient[v1.GetMultiRequest, v1.GetMultiResponse](
+			httpClient,
+			baseURL+CacheServiceGetMultiProcedure,
+			connect.WithSchema(cacheServiceGetMultiMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 		getStream: connect.NewClient[v1.GetRequest, v1.GetResponse](
 			httpClient,
 			baseURL+CacheServiceGetStreamProcedure,
@@ -132,6 +142,7 @@ type cacheServiceClient struct {
 	delete    *connect.Client[v1.DeleteRequest, v1.DeleteResponse]
 	exists    *connect.Client[v1.ExistsRequest, v1.ExistsResponse]
 	get       *connect.Client[v1.GetRequest, v1.GetResponse]
+	getMulti  *connect.Client[v1.GetMultiRequest, v1.GetMultiResponse]
 	getStream *connect.Client[v1.GetRequest, v1.GetResponse]
 	purge     *connect.Client[v1.PurgeRequest, v1.PurgeResponse]
 	setStream *connect.Client[v1.SetRequest, v1.SetResponse]
@@ -151,6 +162,11 @@ func (c *cacheServiceClient) Exists(ctx context.Context, req *connect.Request[v1
 // Get calls cache.v1.CacheService.Get.
 func (c *cacheServiceClient) Get(ctx context.Context, req *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
 	return c.get.CallUnary(ctx, req)
+}
+
+// GetMulti calls cache.v1.CacheService.GetMulti.
+func (c *cacheServiceClient) GetMulti(ctx context.Context, req *connect.Request[v1.GetMultiRequest]) (*connect.Response[v1.GetMultiResponse], error) {
+	return c.getMulti.CallUnary(ctx, req)
 }
 
 // GetStream calls cache.v1.CacheService.GetStream.
@@ -178,6 +194,7 @@ type CacheServiceHandler interface {
 	Delete(context.Context, *connect.Request[v1.DeleteRequest]) (*connect.Response[v1.DeleteResponse], error)
 	Exists(context.Context, *connect.Request[v1.ExistsRequest]) (*connect.Response[v1.ExistsResponse], error)
 	Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error)
+	GetMulti(context.Context, *connect.Request[v1.GetMultiRequest]) (*connect.Response[v1.GetMultiResponse], error)
 	GetStream(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error
 	Purge(context.Context, *connect.Request[v1.PurgeRequest]) (*connect.Response[v1.PurgeResponse], error)
 	SetStream(context.Context, *connect.BidiStream[v1.SetRequest, v1.SetResponse]) error
@@ -206,6 +223,12 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 		CacheServiceGetProcedure,
 		svc.Get,
 		connect.WithSchema(cacheServiceGetMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
+	cacheServiceGetMultiHandler := connect.NewUnaryHandler(
+		CacheServiceGetMultiProcedure,
+		svc.GetMulti,
+		connect.WithSchema(cacheServiceGetMultiMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
 	cacheServiceGetStreamHandler := connect.NewBidiStreamHandler(
@@ -240,6 +263,8 @@ func NewCacheServiceHandler(svc CacheServiceHandler, opts ...connect.HandlerOpti
 			cacheServiceExistsHandler.ServeHTTP(w, r)
 		case CacheServiceGetProcedure:
 			cacheServiceGetHandler.ServeHTTP(w, r)
+		case CacheServiceGetMultiProcedure:
+			cacheServiceGetMultiHandler.ServeHTTP(w, r)
 		case CacheServiceGetStreamProcedure:
 			cacheServiceGetStreamHandler.ServeHTTP(w, r)
 		case CacheServicePurgeProcedure:
@@ -267,6 +292,10 @@ func (UnimplementedCacheServiceHandler) Exists(context.Context, *connect.Request
 
 func (UnimplementedCacheServiceHandler) Get(context.Context, *connect.Request[v1.GetRequest]) (*connect.Response[v1.GetResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.Get is not implemented"))
+}
+
+func (UnimplementedCacheServiceHandler) GetMulti(context.Context, *connect.Request[v1.GetMultiRequest]) (*connect.Response[v1.GetMultiResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("cache.v1.CacheService.GetMulti is not implemented"))
 }
 
 func (UnimplementedCacheServiceHandler) GetStream(context.Context, *connect.BidiStream[v1.GetRequest, v1.GetResponse]) error {
